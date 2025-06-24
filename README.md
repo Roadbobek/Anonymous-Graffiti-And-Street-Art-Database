@@ -2,7 +2,7 @@
 
 ## A graffiti and street art database focused on anonymity.  
 
-![GRAFF DB]("assets/GRAFF DB - SCALED - NO BG (1).png")
+![GRAFF DB](assets/GRAFF%20DB%20-%20SCALED%20-%20NO%20BG%20(1).png)
 
 ### I've always had a keen interest in both graffiti and computers. When I was getting into graffiti, I found it difficult to find a centralized database for inspiration or to quickly check if certain names or styles were overused. This personal challenge was the driving force behind creating this platform – an anonymous space for the community to share and explore street art. Around them and in the whole world!
 
