@@ -7,6 +7,9 @@ st.set_page_config(
     layout="wide"
 )
 
+# Logo of the app
+st.logo(image="assets//AG&SAD - no bg - scaled 2.png", size="large")
+
 # The Discord SVG icon code
 discord_svg = """
 <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="currentColor" class="bi bi-discord" viewBox="0 0 16 16">

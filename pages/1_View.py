@@ -25,6 +25,8 @@ st.set_page_config(
     layout="wide"
 )
 
+# Logo of the app
+st.logo(image="assets//AG&SAD - no bg - scaled 2.png", size="large")
 
 # Apply custom CSS for global styling
 st.markdown("""

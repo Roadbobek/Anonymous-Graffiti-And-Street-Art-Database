@@ -3,37 +3,41 @@
 # import random, string
 # import os
 # import sqlite3
-# import time
 # import re
+# import folium
+# from streamlit_folium import st_folium, folium_static
+# import requests
 #
-# # One-time session-state initializations
-# if 'controllo' not in st.session_state:
-#     st.session_state['controllo'] = False
+# # ——— Page Config & Title ———
+# st.set_page_config(
+#     page_title="Anonymous Graffiti & Street Art Database",
+#     page_icon="🎨",
+#     # layout="wide"
+# )
 #
-# if 'last_upload' not in st.session_state:
-#     st.session_state['last_upload'] = None
+# # Logo of the app
+# st.logo(image="assets//AG&SAD - no bg - scaled 2.png", size="large")
 #
-# # Make graffiti_uploads folder
-# # 1) Locate this script’s folder
+# st.title("⬆️ Upload a New Graffiti Post")
+# st.divider()
+#
+# # ——— Session‑state init ———
+# for key, default in [
+#     ('controllo', False),
+#     ('selected_location', None),
+#     ('location_text', "")
+# ]:
+#     st.session_state.setdefault(key, default)
+#
+# # ——— Paths & DB setup ———
 # script_dir = os.path.dirname(os.path.abspath(__file__))
-# # 2) Go up one level (where your graffiti.db lives)
 # parent_dir = os.path.abspath(os.path.join(script_dir, os.pardir))
-# # 3) Create the uploads folder alongside the DB
 # upload_dir = os.path.join(parent_dir, "graffiti_uploads")
 # os.makedirs(upload_dir, exist_ok=True)
-#
-# # Connect to the database or make it
-# ## Get the directory where the script lives
-# # script_dir = os.path.dirname(os.path.abspath(__file__))
-# # # Go one directory up
-# # parent_dir = os.path.abspath(os.path.join(script_dir, os.pardir))
-# # Construct the full path to the DB
 # db_path = os.path.join(parent_dir, "graffiti.db")
-# # Connect to the database
 # conn = sqlite3.connect(db_path, check_same_thread=False)
 # cursor = conn.cursor()
 #
-# # Ensure the posts table exists
 # cursor.execute("""
 # CREATE TABLE IF NOT EXISTS posts (
 #     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,177 +49,218 @@
 #     upload_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 #     likes INTEGER DEFAULT 0,
 #     dislikes INTEGER DEFAULT 0,
-#     reports INTEGER DEFAULT 0
+#     reports INTEGER DEFAULT 0,
+#     latitude REAL,
+#     longitude REAL
 # )
 # """)
 # conn.commit()
 #
-# # Captcha parameters
-# length_captcha = 4
-# width = 200
-# height = 150
-#
-# # for manual date
-# # Precompile the regex for performance
+# # ——— Helpers ———
 # DATE_REGEX = re.compile(
-#     r'^(\d{4})-'          # Year: four digits
-#     r'(0[1-9]|1[0-2]|00)-'  # Month: 01–09,10–12, or 00
-#     r'(0[1-9]|[12]\d|3[01]|00)$'  # Day: 01–09,10–29,30–31, or 00
+#     r'^(\d{4})-(0[1-9]|1[0-2]|00)-(0[1-9]|[12]\d|3[01]|00)$'
 # )
-#
 # def is_invalid_date(s: str) -> bool:
-#     """
-#     Returns True if `s` is invalid, False if it’s valid.
-#     Valid form is YYYY-MM-DD, where MM and DD can each be "00" to indicate unknown,
-#     BUT if MM == "00" then DD must also be "00".
-#     """
 #     m = DATE_REGEX.match(s)
 #     if not m:
-#         # Doesn’t even fit the basic pattern
 #         return True
-#
-#     year_str, month_str, day_str = m.groups()
-#
-#     # If year is "0000" then month MUST be "00"
-#     if year_str == "0000" and month_str != "00":
-#         return True
-#
-#     # If month is "00" then day MUST be "00"
-#     if month_str == "00" and day_str != "00":
-#         return True
-#
-#     # If month != "00", check numeric range
-#     if month_str != "00":
-#         month = int(month_str)
-#         if not (1 <= month <= 12):
-#             return True
-#
-#     # If day != "00", check numeric range
-#     if day_str != "00":
-#         day = int(day_str)
-#         if not (1 <= day <= 31):
-#             return True
-#
-#     # All checks passed
+#     y, mo, d = m.groups()
+#     if y=="0000" and mo!="00": return True
+#     if mo=="00" and d!="00": return True
+#     if mo!="00" and not (1<=int(mo)<=12): return True
+#     if d!="00" and not (1<=int(d)<=31): return True
 #     return False
 #
-# # Set how the page looks in browser
-# st.set_page_config(
-#     page_title="Anonymous Graffiti & Street Art Database",
-#     page_icon="🎨",
-#     # layout="wide"
-# )
+# def search_nominatim(query):
+#     url = "https://nominatim.openstreetmap.org/search"
+#     r = requests.get(
+#         url,
+#         params={"q": query, "format": "json", "limit": 5},
+#         headers={"User-Agent": "graffiti-app"}
+#     )
+#     r.raise_for_status()
+#     return r.json()
 #
-# st.title("⬆️ Upload a New Graffiti Post")
-# st.divider()
-#
-# # Captcha control with form
-#
+# # ——— Captcha control ———
 # def captcha_control():
 #     if not st.session_state['controllo']:
 #         st.header("💿 Please complete the Captcha")
-#
-#         # Generate or regenerate captcha code
-#         if 'Captcha' not in st.session_state:
-#             st.session_state['Captcha'] = ''.join(
-#                 random.choices(string.ascii_uppercase, k=length_captcha)
-#             )
-#
-#         # Display form
-#         with st.form(key="captcha_form", clear_on_submit=True):
-#             col1, col2 = st.columns(2)
-#             image = ImageCaptcha(width=width, height=height)
-#             data = image.generate(st.session_state['Captcha'])
-#             col1.image(data)
-#             user_input = col2.text_input("Enter captcha text:")
-#             submitted = st.form_submit_button("Verify the code")
-#
-#             if submitted:
-#                 if user_input.strip().lower() == st.session_state['Captcha'].lower():
+#         st.session_state.setdefault(
+#             'Captcha',
+#             ''.join(random.choices(string.ascii_uppercase, k=4))
+#         )
+#         with st.form("captcha_form", clear_on_submit=True):
+#             c1, c2 = st.columns(2)
+#             img = ImageCaptcha(width=200, height=150)
+#             c1.image(img.generate(st.session_state['Captcha']))
+#             inp = c2.text_input("Enter Captcha:")
+#             ok = st.form_submit_button("Verify")
+#             if ok:
+#                 if inp.strip().lower() == st.session_state['Captcha'].lower():
 #                     st.session_state['controllo'] = True
-#                     st.success("✅ Captcha correct! Proceeding…")
+#                     st.success("✅ Captcha correct!")
 #                     st.rerun()
-#                 elif user_input.strip().lower() == "":
-#                     st.error("🚨 Captcha Incomplete, please try again.")
-#                     st.session_state['Captcha'] = st.session_state['Captcha']
 #                 else:
-#                     st.error("🚨 Captcha incorrect, please try again.")
-#                     # regenerate for next attempt
+#                     st.error("🚨 Wrong Captcha, try again.")
 #                     st.session_state['Captcha'] = ''.join(
-#                         random.choices(string.ascii_uppercase, k=length_captcha)
+#                         random.choices(string.ascii_uppercase, k=4)
 #                     )
 #                     st.rerun()
 #
-# # Main upload page
-#
+# # ——— Main upload page ———
 # def your_main():
-#     global time_taken
-#     max_len = 50
-#     st.header("🎉 You’re not a robot, go ahead!")
+#     st.subheader("🎉 You’re not a robot — upload away!")
+#     st.divider()
 #
-#     uploaded_file = st.file_uploader("Choose an image file", type=["jpg", "jpeg", "png", "webp"])
-#     location = st.text_input("Location (Street, City, State, Country):", max_chars=50)
+#     # 1) Image upload
+#     st.subheader("1. Upload Image")
+#     uploaded_file = st.file_uploader(
+#         "Choose an image file:", type=["jpg","jpeg","png","webp"]
+#     )
+#     st.divider()
+#
+#     # 2) Artist name
+#     st.subheader("2. Artist Name")
 #     artist = st.text_input("Artist name:", max_chars=50)
-#     time_known = st.selectbox("Time of picture selection type:", ("Please select", "Calender", "Manual", "Date unknown"))
-#     if time_known == "Calender":
-#         time_taken = st.date_input("Time of picture:", min_value='1950-01-01', max_value='today')
-#     elif time_known == "Manual":
-#         st.markdown("Format: *YYYY-MM-DD* — use *00* for unknown, — e.g.&ensp;&ensp;*2025-00-00*,&ensp;&ensp;*2021-07-00*,&ensp;&ensp;*2024-3-16*.")
-#         time_taken = st.text_input('Time of picture', max_chars=10)
-#     elif time_known == "Date unknown":
+#     st.divider()
+#
+#     # 3) Location choice
+#     st.subheader("3. Location")
+#     loc_method = st.selectbox(
+#         "Location entry method:",
+#         ["Please select", "Search & map", "Unknown location"]
+#     )
+#     loc_ready = False
+#
+#     if loc_method == "Search & map":
+#         loc_in = st.text_input(
+#             "Search location:",
+#             st.session_state['location_text'],
+#             max_chars=500
+#         )
+#         if loc_in and len(loc_in) > 2:
+#             matches = search_nominatim(loc_in)
+#             opts = [m['display_name'] for m in matches]
+#             sel = st.selectbox("Suggestions:", opts, key="loc_sug")
+#             if sel:
+#                 idx = opts.index(sel)
+#                 lat = float(matches[idx]['lat'])
+#                 lon = float(matches[idx]['lon'])
+#                 st.session_state['selected_location'] = (lat, lon)
+#                 st.session_state['location_text'] = matches[idx]['display_name']
+#                 loc_ready = True
+#
+#     elif loc_method == "Unknown location":
+#         st.markdown("_Location will be recorded as Unknown_")
+#         st.session_state['location_text'] = "Unknown"
+#         st.session_state['selected_location'] = None
+#         loc_ready = True
+#
+#     else:
+#         st.warning("❗ Please choose a location entry method above")
+#     st.divider()
+#
+#     # 4) Map picker
+#     st.subheader("4. Map Picker (Optional)")
+#     # show full world at zoom 2
+#     initial_zoom = 2
+#     coords = st.session_state['selected_location'] or (20, 0)
+#     m = folium.Map(location=coords, zoom_start=initial_zoom)
+#
+#     if loc_method == "Search & map":
+#         # interactive map immediately
+#         if st.session_state['selected_location']:
+#             folium.Marker(location=coords, tooltip="Selected Location").add_to(m)
+#         map_data = st_folium(m, width=700, height=400)
+#
+#         if map_data.get("last_clicked"):
+#             lat = map_data["last_clicked"]["lat"]
+#             lon = map_data["last_clicked"]["lng"]
+#             st.session_state['selected_location'] = (lat, lon)
+#             resp = requests.get(
+#                 "https://nominatim.openstreetmap.org/reverse",
+#                 params={"lat":lat, "lon":lon, "format":"json"},
+#                 headers={"User-Agent":"graffiti-app"}
+#             ).json()
+#             name = resp.get("display_name", "Unknown location")
+#             st.session_state['location_text'] = name
+#             loc_ready = True
+#             # st.success(f"📍 {name}")
+#
+#     else:
+#         # static embed for other methods
+#         folium_static(m, width=700, height=400)
+#
+#     st.divider()
+#
+#     # 5) Time input
+#     st.subheader("5. Time of Picture")
+#     time_sel = st.selectbox(
+#         "Time type:", ["Please select", "Calender", "Manual", "Unknown"]
+#     )
+#     if time_sel == "Calender":
+#         time_taken = st.date_input(
+#             "Picture date:", min_value="1950-01-01", max_value="today"
+#         )
+#     elif time_sel == "Manual":
+#         st.markdown("Format: YYYY-MM-DD (00 for unknown)")
+#         time_taken = st.text_input("Enter date:", max_chars=10)
+#     else:
 #         time_taken = "0000-00-00"
+#     st.divider()
+#
+#     # 6) Description
+#     st.subheader("6. Description")
 #     description = st.text_area("Description:", max_chars=500)
+#     st.divider()
 #
+#     # 7) Upload button & final validation
 #     if st.button("Upload Post"):
-#         if uploaded_file:
-#             if location:
-#                 pass
-#             else:
-#                 st.error("❌ Empty location.")
-#                 st.stop()
-#             if artist:
-#                 pass
-#             else:
-#                 st.error("❌ Empty artist name.")
-#                 st.stop()
-#             if time_known == "Please select":
-#                 st.error("❌ Please select a date type.")
-#                 st.stop()
-#             if time_known == "Manual":
-#                 if is_invalid_date(time_taken):
-#                     st.error("❌ Invalid date format or logic.")
-#                     st.stop()
-#                 else:
-#                     pass
+#         if not uploaded_file:
+#             st.error("❌ Please upload an image."); st.stop()
+#         if not artist:
+#             st.error("❌ Artist name required."); st.stop()
+#         if loc_method == "Please select":
+#             st.error("❌ Please choose a location entry method."); st.stop()
+#         if loc_method == "Search & map" and not loc_ready:
+#             st.error("❌ You must pick a suggested or click on the map."); st.stop()
+#         if time_sel == "Please select":
+#             st.error("❌ Select a time type."); st.stop()
+#         if time_sel == "Manual" and is_invalid_date(time_taken):
+#             st.error("❌ Invalid date format."); st.stop()
 #
-#             file_size_mb = round(uploaded_file.size / (1024 * 1024), 2)
-#             file_name, file_ext = os.path.splitext(uploaded_file.name)
-#             counter = 1
-#             new_name = file_name[:max_len] + file_ext
-#             if len(file_name) > 50:
-#                 st.success("📏 File name exceeds 50 character limit so it was shortened.")
-#             full_path = os.path.join(upload_dir, new_name)
-#             while os.path.exists(full_path):
-#                 new_name = f"{file_name}_{counter}{file_ext}"
-#                 full_path = os.path.join(upload_dir, new_name)
-#                 counter += 1
-#             with open(full_path, "wb") as f:
-#                 f.write(uploaded_file.getbuffer())
+#         # Save image file
+#         base, ext = os.path.splitext(uploaded_file.name)
+#         base = base[:50]
+#         new_name = base + ext
+#         path = os.path.join(upload_dir, new_name)
+#         i = 1
+#         while os.path.exists(path):
+#             new_name = f"{base}_{i}{ext}"
+#             path = os.path.join(upload_dir, new_name)
+#             i += 1
+#         with open(path, "wb") as f:
+#             f.write(uploaded_file.getbuffer())
 #
-#             cursor.execute(
-#                 """
-#                 INSERT INTO posts (file_name, location, artist, time_taken, description)
-#                 VALUES (?, ?, ?, ?, ?)
-#                 """,
-#                 (new_name, location, artist, time_taken, description)
-#             )
-#             conn.commit()
+#         # Insert into DB
+#         lonlat = st.session_state['selected_location'] or (None, None)
+#         cursor.execute("""
+#             INSERT INTO posts
+#             (file_name, location, artist, time_taken, description, latitude, longitude)
+#             VALUES (?, ?, ?, ?, ?, ?, ?)
+#         """, (
+#             new_name,
+#             st.session_state['location_text'],
+#             artist,
+#             str(time_taken),
+#             description,
+#             lonlat[0],
+#             lonlat[1]
+#         ))
+#         conn.commit()
+#         st.success(f"✅ Uploaded {new_name} successfully!")
 #
-#             st.success(f"✅ Uploaded {new_name} ({file_size_mb} MB)!")
-#         else:
-#             st.error("❌ Please upload an image file.")
-#
-# # App flow
+# # ——— App flow ———
 # if not st.session_state['controllo']:
 #     captcha_control()
 # else:

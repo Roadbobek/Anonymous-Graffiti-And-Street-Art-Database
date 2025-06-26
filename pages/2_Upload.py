@@ -7,6 +7,7 @@ import re
 import folium
 from streamlit_folium import st_folium, folium_static
 import requests
+import time
 
 # ——— Page Config & Title ———
 st.set_page_config(
@@ -14,6 +15,10 @@ st.set_page_config(
     page_icon="🎨",
     # layout="wide"
 )
+
+# Logo of the app
+st.logo(image="assets//AG&SAD - no bg - scaled 2.png", size="large")
+
 st.title("⬆️ Upload a New Graffiti Post")
 st.divider()
 
@@ -21,7 +26,8 @@ st.divider()
 for key, default in [
     ('controllo', False),
     ('selected_location', None),
-    ('location_text', "")
+    ('location_text', ""),
+    ('post_cooldown_end_time', 0)
 ]:
     st.session_state.setdefault(key, default)
 
@@ -103,6 +109,7 @@ def captcha_control():
                     )
                     st.rerun()
 
+
 # ——— Main upload page ———
 def your_main():
     st.subheader("🎉 You’re not a robot — upload away!")
@@ -152,8 +159,8 @@ def your_main():
         st.session_state['selected_location'] = None
         loc_ready = True
 
-    else:
-        st.warning("❗ Please choose a location entry method above")
+    # else:
+    #     st.warning("❗ Please choose a location entry method above")
     st.divider()
 
     # 4) Map picker
@@ -211,50 +218,61 @@ def your_main():
     st.divider()
 
     # 7) Upload button & final validation
-    if st.button("Upload Post"):
-        if not uploaded_file:
-            st.error("❌ Please upload an image."); st.stop()
-        if not artist:
-            st.error("❌ Artist name required."); st.stop()
-        if loc_method == "Please select":
-            st.error("❌ Please choose a location entry method."); st.stop()
-        if loc_method == "Search & map" and not loc_ready:
-            st.error("❌ You must pick a suggested or click on the map."); st.stop()
-        if time_sel == "Please select":
-            st.error("❌ Select a time type."); st.stop()
-        if time_sel == "Manual" and is_invalid_date(time_taken):
-            st.error("❌ Invalid date format."); st.stop()
+    if st.button("Upload Post", use_container_width=True, type="primary"):
+        if time.time() < st.session_state['post_cooldown_end_time']:
+            st.warning(f"⌚ Please wait {abs(time.time() - st.session_state['post_cooldown_end_time']):.2f} seconds before uploading a new post.")
+        else:
 
-        # Save image file
-        base, ext = os.path.splitext(uploaded_file.name)
-        base = base[:50]
-        new_name = base + ext
-        path = os.path.join(upload_dir, new_name)
-        i = 1
-        while os.path.exists(path):
-            new_name = f"{base}_{i}{ext}"
+            if not uploaded_file:
+                st.error("❌ Please upload an image."); st.stop()
+            if not artist:
+                st.error("❌ Artist name required."); st.stop()
+            if loc_method == "Please select":
+                st.error("❌ Please choose a location entry method."); st.stop()
+            if loc_method == "Search & map" and not loc_ready:
+                st.error("❌ You must pick a suggested or click on the map."); st.stop()
+            if time_sel == "Please select":
+                st.error("❌ Select a time type."); st.stop()
+            if time_sel == "Manual" and is_invalid_date(time_taken):
+                st.error("❌ Invalid date format."); st.stop()
+
+            # Save image file
+            base, ext = os.path.splitext(uploaded_file.name)
+            base = base[:50]
+            new_name = base + ext
             path = os.path.join(upload_dir, new_name)
-            i += 1
-        with open(path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
+            i = 1
+            while os.path.exists(path):
+                new_name = f"{base}_{i}{ext}"
+                path = os.path.join(upload_dir, new_name)
+                i += 1
+            with open(path, "wb") as f:
+                f.write(uploaded_file.getbuffer())
 
-        # Insert into DB
-        lonlat = st.session_state['selected_location'] or (None, None)
-        cursor.execute("""
-            INSERT INTO posts
-            (file_name, location, artist, time_taken, description, latitude, longitude)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (
-            new_name,
-            st.session_state['location_text'],
-            artist,
-            str(time_taken),
-            description,
-            lonlat[0],
-            lonlat[1]
-        ))
-        conn.commit()
-        st.success(f"✅ Uploaded {new_name} successfully!")
+            # Insert into DB
+            lonlat = st.session_state['selected_location'] or (None, None)
+            cursor.execute("""
+                INSERT INTO posts
+                (file_name, location, artist, time_taken, description, latitude, longitude)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                new_name,
+                st.session_state['location_text'],
+                artist,
+                str(time_taken),
+                description,
+                lonlat[0],
+                lonlat[1]
+            ))
+            conn.commit()
+            st.success(f"✅ Uploaded {new_name} successfully!")
+
+
+        # Start 5 second cooldown
+        cooldown_duration_seconds = 5
+        if time.time() >= st.session_state['post_cooldown_end_time']:
+            st.session_state['post_cooldown_end_time'] = time.time() + cooldown_duration_seconds
+
 
 # ——— App flow ———
 if not st.session_state['controllo']:
