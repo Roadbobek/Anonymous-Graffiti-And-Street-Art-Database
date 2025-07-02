@@ -7,12 +7,12 @@
 # import folium
 # from streamlit_folium import st_folium, folium_static
 # import math
+# import time
 #
 #
 # # Connect to the database or make it
 # script_dir = os.path.dirname(os.path.abspath(__file__)) # Get the directory where the script lives
-# parent_dir = os.path.abspath(os.path.join(script_dir, os.pardir)) # Go one directory up
-# db_path = os.path.join(parent_dir, "graffiti.db") # Construct the full path to the DB
+# db_path = os.path.join(script_dir, "graffiti.db") # Construct the full path to the DB
 #
 # conn = sqlite3.connect(db_path, check_same_thread=False) # Connect to the database
 # cursor = conn.cursor()
@@ -25,15 +25,45 @@
 #     layout="wide"
 # )
 #
+# # Apply custom CSS for global styling
+# st.markdown("""
+#     <style>
+#
+#         /* Styles for the logo when sidebar is EXPANDED (it's inside the 'stSidebarHeader' div) */
+#         [data-testid="stSidebarHeader"] img.stLogo {
+#             width: 240px !important; /* **MAKE IT BIGGER WHEN EXPANDED** */
+#             height: auto !important; /* Maintain aspect ratio */
+#         }
+#
+#         /* Styles for the logo when sidebar is COLLAPSED (it's inside the 'stSidebarCollapsedControl' div) */
+#         [data-testid="stSidebarCollapsedControl"] img.stLogo {
+#             width: 120px !important; /* **MAKE IT NORMAL/SMALLER WHEN COLLAPSED** */
+#             height: auto !important; /* Maintain aspect ratio */
+#         }
+#
+#         /* Apply a smooth transition effect to the logo's width */
+#         img.stLogo {
+#             transition: width 0.3s ease-in-out !important;
+#         }
+#
+#     </style>
+# """, unsafe_allow_html=True)
+#
+#
 # # Logo of the app
-# st.logo(image="assets//AG&SAD - no bg - scaled 2.png", size="large")
+# st.logo(image="assets//GRAFF_DB-BANNER.png", size="large")
+#
+# st.title("🖼️ View Graffiti Posts")
+# st.divider()
 #
 # # Apply custom CSS for global styling
 # st.markdown("""
 #     <style>
-#         /* Remove rounding on every image */
+#         /* Toggle rounding on every image */
+#         /* 1: Round. (Default) */
+#         /* 0: Don't Round. */
 #         img {
-#             border-radius: 0 !important;
+#             border-radius: 1 !important;
 #         }
 #
 #         /* FIX FOR ST_FOLIUM CONTAINER HEIGHT */
@@ -62,25 +92,29 @@
 # """, unsafe_allow_html=True)
 #
 #
-# st.markdown("""
-#     <style>
-#         /* Remove rounding on every image */
-#         img {
-#             border-radius: 0 !important;
-#         }
-#     </style>
-# """, unsafe_allow_html=True)
-#
-#
 # # Initialize session state variables
 # for key, default in [
 #     ('selected_location', None), # Stores the currently selected location (lat, lon tuple)
 #     ('location_text', ""),       # Stores the display name of the selected location
-#     ('map_data', None)           # Stores data from st_folium map interactions
+#     ('map_data', None),          # Stores data from st_folium map interactions
+#
+#     # Separate cooldown timers for each action
+#     ('like_cooldown_end_time', 0),
+#     ('dislike_cooldown_end_time', 0),
+#     ('report_cooldown_end_time', 0),
+#
+#     # Sets to track posts already liked/disliked/reported by the current user session
+#     ('liked_posts', set()),      # Stores post_ids that have been liked
+#     ('disliked_posts', set()),   # Stores post_ids that have been disliked
+#     ('reported_posts', set()),   # Stores post_ids that have been reported
+#
+#     # Dictionary to manage local, temporary warning messages (keyed by "action_postID")
+#     ('active_local_warnings', {}),
 # ]:
 #     st.session_state.setdefault(key, default)
 #
 #
+# # ---Helper functions---
 # def resize_to_fit(path, max_size=(900, 900)):
 #     """Resizes an image to fit within specified maximum dimensions."""
 #     img = Image.open(path)
@@ -105,7 +139,7 @@
 #     """
 #     Displays the full-resolution image for a given post in a dialog.
 #     """
-#     img_path = os.path.join(parent_dir, "graffiti_uploads", file_name)
+#     img_path = os.path.join(script_dir, "graffiti_uploads", file_name)
 #     st.image(img_path, use_container_width=True) # Scales to app width
 #
 #
@@ -316,7 +350,7 @@
 #     col1, col2 = st.columns([0.7, 0.3])
 #
 #     with col1:
-#         image_path = os.path.join(parent_dir, "graffiti_uploads", file_name) # Construct image path
+#         image_path = os.path.join(script_dir, "graffiti_uploads", file_name) # Construct image path
 #         img = resize_to_fit(image_path) # Resize image for display
 #         st.image(img) # Display image
 #
@@ -333,23 +367,190 @@
 #         st.caption(f"ID: {post_id}") # Display post ID
 #
 #
+#
+#         # ---- Like/Dislike/Report Logic ----
 #         # Row with like, dislike, and report buttons
 #         like_col, dislike_col, report_col = st.columns(3)
 #
+#
+#         # --- LIKE BUTTON LOGIC ---
 #         with like_col:
-#             if st.button(f"👍 Like ({likes})", key=f"like_{post_id}", use_container_width=True):
-#                 cursor.execute("UPDATE posts SET likes = likes + 1 WHERE id = ?", (post_id,)) # Increment likes
-#                 conn.commit() # Commit changes to DB
-#                 st.rerun() # Rerun to update counts
+#             # Determine button text based on whether it's already liked
+#             is_liked_by_user = post_id in st.session_state['liked_posts']
+#             like_button_text = f"❌ Unlike ({likes})" if is_liked_by_user else f"👍 Like ({likes})"
 #
+#             if st.button(like_button_text, key=f"like_{post_id}", use_container_width=True):
+#                 current_time = time.time()
+#                 message_content = ""
+#                 cooldown_duration = 5 # seconds for like cooldown
+#
+#                 if is_liked_by_user:
+#                     # If already liked, remove the like
+#                     cursor.execute("UPDATE posts SET likes = likes - 1 WHERE id = ?", (post_id,))
+#                     conn.commit()
+#                     st.session_state['liked_posts'].remove(post_id) # Remove from liked set
+#                 elif current_time < st.session_state['like_cooldown_end_time']:
+#                     # If not liked, but cooldown is active
+#                     time_left = st.session_state['like_cooldown_end_time'] - current_time
+#                     message_content = f"⌚ Like cooldown: Please wait {time_left:.2f}s."
+#                 else:
+#                     # If not liked and cooldown is clear, perform like action
+#                     cursor.execute("UPDATE posts SET likes = likes + 1 WHERE id = ?", (post_id,))
+#                     conn.commit()
+#                     st.session_state['liked_posts'].add(post_id) # Add to liked set
+#                     st.session_state['like_cooldown_end_time'] = current_time + cooldown_duration # Set new like cooldown
+#
+#                 # Store message for display via local placeholder and trigger rerun
+#                 # Only store if message_content is not empty
+#                 if message_content: # <-- NEW: Only store if there's actual content
+#                     st.session_state['active_local_warnings'][f"like_warn_{post_id}"] = {
+#                         "content": message_content,
+#                         "display_until": current_time + 1.5 # All messages display for 1.5 seconds
+#                     }
+#                 st.rerun() # Crucial: Force a rerun to update the UI
+#
+#             # Create a placeholder for THIS specific post's like-related warnings/messages
+#             # Moved: local_like_message_placeholder is now created AFTER the button
+#             local_like_message_placeholder = st.empty()
+#
+#             # --- Logic to Display/Clear the LOCAL Like Warning on Each Rerun ---
+#             # This block runs for EVERY post on EVERY rerun to manage its specific warning.
+#             warning_key = f"like_warn_{post_id}"
+#             current_time_display = time.time()
+#
+#             if warning_key in st.session_state.get('active_local_warnings', {}):
+#                 warning_info = st.session_state['active_local_warnings'][warning_key]
+#
+#                 if current_time_display < warning_info['display_until']:
+#                     local_like_message_placeholder.warning(warning_info['content'])
+#
+#                     # --- JavaScript for Automatic Disappearance (still necessary for true auto-timer) ---
+#                     # This JavaScript tells the browser to reload the page after 'delay_ms'
+#                     delay_ms = max(0, int((warning_info['display_until'] - current_time_display) * 1000) + 50)
+#                     st.markdown(
+#                         f"""
+#                         <script>
+#                             setTimeout(function() {{
+#                                 window.location.reload();
+#                             }}, {delay_ms});
+#                         </script>
+#                         """,
+#                         unsafe_allow_html=True
+#                     )
+#                     # --- End JavaScript ---
+#                 else:
+#                     # Display time has passed: remove the warning from session state and clear placeholder
+#                     del st.session_state['active_local_warnings'][warning_key]
+#                     local_like_message_placeholder.empty() # Explicitly clear
+#             else:
+#                 local_like_message_placeholder.empty() # Ensure empty if no warning active for this post
+#
+#
+#
+#         # --- DISLIKE BUTTON LOGIC ---
 #         with dislike_col:
-#             if st.button(f"👎 Dislike ({dislikes})", key=f"dislike_{post_id}", use_container_width=True):
-#                 cursor.execute("UPDATE posts SET dislikes = dislikes + 1 WHERE id = ?", (post_id,)) # Increment dislikes
-#                 conn.commit() # Commit changes to DB
-#                 st.rerun() # Rerun to update counts
+#             # Determine button text based on whether it's already disliked
+#             is_disliked_by_user = post_id in st.session_state['disliked_posts']
+#             dislike_button_text = f"❌ Undislike ({dislikes})" if is_disliked_by_user else f"👎 Dislike ({dislikes})"
 #
+#             if st.button(dislike_button_text, key=f"dislike_{post_id}", use_container_width=True):
+#                 current_time = time.time()
+#                 message_content = ""
+#                 cooldown_duration = 5 # seconds for dislike cooldown
+#
+#                 if is_disliked_by_user:
+#                     # If already disliked, remove the dislike
+#                     cursor.execute("UPDATE posts SET dislikes = dislikes - 1 WHERE id = ?", (post_id,))
+#                     conn.commit()
+#                     st.session_state['disliked_posts'].remove(post_id) # Remove from disliked set
+#                 elif current_time < st.session_state['dislike_cooldown_end_time']:
+#                     # If not disliked, but cooldown is active
+#                     time_left = st.session_state['dislike_cooldown_end_time'] - current_time
+#                     message_content = f"⌚ Dislike cooldown: Please wait {time_left:.2f}s."
+#                 else:
+#                     # If not disliked and cooldown is clear, perform dislike action
+#                     cursor.execute("UPDATE posts SET dislikes = dislikes + 1 WHERE id = ?", (post_id,))
+#                     conn.commit()
+#                     st.session_state['disliked_posts'].add(post_id) # Add to disliked set
+#                     st.session_state['dislike_cooldown_end_time'] = current_time + cooldown_duration # Set new dislike cooldown
+#
+#                 if message_content: # <-- NEW: Only store if there's actual content
+#                     st.session_state['active_local_warnings'][f"dislike_warn_{post_id}"] = {
+#                         "content": message_content,
+#                         "display_until": current_time + 1.5
+#                     }
+#                 st.rerun()
+#
+#             # Moved: local_dislike_message_placeholder is now created AFTER the button
+#             local_dislike_message_placeholder = st.empty()
+#
+#             # --- Logic to Display/Clear the LOCAL Dislike Warning ---
+#             warning_key = f"dislike_warn_{post_id}"
+#             current_time_display = time.time()
+#
+#             if warning_key in st.session_state.get('active_local_warnings', {}):
+#                 warning_info = st.session_state['active_local_warnings'][warning_key]
+#                 if current_time_display < warning_info['display_until']:
+#                     local_dislike_message_placeholder.warning(warning_info['content'])
+#                     delay_ms = max(0, int((warning_info['display_until'] - current_time_display) * 1000) + 50)
+#                     st.markdown(f"""<script>setTimeout(function() {{window.location.reload();}}, {delay_ms});</script>""", unsafe_allow_html=True)
+#                 else:
+#                     del st.session_state['active_local_warnings'][warning_key]
+#                     local_dislike_message_placeholder.empty()
+#             else:
+#                 local_dislike_message_placeholder.empty()
+#
+#
+#
+#         # --- REPORT BUTTON LOGIC ---
 #         with report_col:
-#             if st.button(f"🚩 Report ({reports})", key=f"report_{post_id}", use_container_width=True):
-#                 cursor.execute("UPDATE posts SET reports = reports + 1 WHERE id = ?", (post_id,)) # Increment reports
-#                 conn.commit() # Commit changes to DB
-#                 st.rerun() # Rerun to update counts
+#             # For report, if already reported, button text can change or it can be disabled
+#             is_reported_by_user = post_id in st.session_state['reported_posts']
+#             report_button_text = f"✅ Reported ({reports})" if is_reported_by_user else f"🚩 Report ({reports})"
+#
+#             if st.button(report_button_text, key=f"report_{post_id}", use_container_width=True):
+#                 current_time = time.time()
+#                 message_content = ""
+#                 cooldown_duration = 5 # seconds for report cooldown
+#
+#                 if is_reported_by_user:
+#                     # If already reported, just show a warning (no unreport action for simplicity)
+#                     # message_content = "✋ You've already reported this post!"
+#                     pass
+#                 elif current_time < st.session_state['report_cooldown_end_time']:
+#                     # If not reported, but cooldown is active
+#                     time_left = st.session_state['report_cooldown_end_time'] - current_time
+#                     message_content = f"⌚ Report cooldown: Please wait {time_left:.2f}s."
+#                 else:
+#                     # If not reported and cooldown is clear, perform report action
+#                     cursor.execute("UPDATE posts SET reports = reports + 1 WHERE id = ?", (post_id,))
+#                     conn.commit()
+#                     st.session_state['reported_posts'].add(post_id) # Add to reported set
+#                     st.session_state['report_cooldown_end_time'] = current_time + cooldown_duration # Set new report cooldown
+#                     message_content = "🚩 Post reported!"
+#
+#                 if message_content: # <-- NEW: Only store if there's actual content
+#                     st.session_state['active_local_warnings'][f"report_warn_{post_id}"] = {
+#                         "content": message_content,
+#                         "display_until": current_time + 1.5
+#                     }
+#                 st.rerun()
+#
+#             # Moved: local_report_message_placeholder is now created AFTER the button
+#             local_report_message_placeholder = st.empty()
+#
+#             # --- Logic to Display/Clear the LOCAL Report Warning ---
+#             warning_key = f"report_warn_{post_id}"
+#             current_time_display = time.time()
+#
+#             if warning_key in st.session_state.get('active_local_warnings', {}):
+#                 warning_info = st.session_state['active_local_warnings'][warning_key]
+#                 if current_time_display < warning_info['display_until']:
+#                     local_report_message_placeholder.warning(warning_info['content'])
+#                     delay_ms = max(0, int((warning_info['display_until'] - current_time_display) * 1000) + 50)
+#                     st.markdown(f"""<script>setTimeout(function() {{window.location.reload();}}, {delay_ms});</script>""", unsafe_allow_html=True)
+#                 else:
+#                     del st.session_state['active_local_warnings'][warning_key]
+#                     local_report_message_placeholder.empty()
+#             else:
+#                 local_report_message_placeholder.empty()

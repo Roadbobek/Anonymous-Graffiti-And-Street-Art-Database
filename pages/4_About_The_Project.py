@@ -1,4 +1,8 @@
 import streamlit as st
+import streamlit.components.v1 as components
+import base64
+import os
+
 
 # Set how the page looks in browser
 st.set_page_config(
@@ -7,8 +11,33 @@ st.set_page_config(
     layout="wide"
 )
 
+# Apply custom CSS for global styling
+st.markdown("""
+    <style>
+    
+        /* Styles for the logo when sidebar is EXPANDED (it's inside the 'stSidebarHeader' div) */
+        [data-testid="stSidebarHeader"] img.stLogo {
+            width: 240px !important; /* **MAKE IT BIGGER WHEN EXPANDED** */
+            height: auto !important; /* Maintain aspect ratio */
+        }
+
+        /* Styles for the logo when sidebar is COLLAPSED (it's inside the 'stSidebarCollapsedControl' div) */
+        [data-testid="stSidebarCollapsedControl"] img.stLogo {
+            width: 120px !important; /* **MAKE IT NORMAL/SMALLER WHEN COLLAPSED** */
+            height: auto !important; /* Maintain aspect ratio */
+        }
+
+        /* Apply a smooth transition effect to the logo's width */
+        img.stLogo {
+            transition: width 0.3s ease-in-out !important;
+        }
+        
+    </style>
+""", unsafe_allow_html=True)
+
 # Logo of the app
-st.logo(image="assets//AG&SAD - no bg - scaled 2.png", size="large")
+st.logo(image="assets//GRAFF_DB-BANNER.png", size="large")
+
 
 # The Discord SVG icon code
 discord_svg = """
@@ -45,15 +74,339 @@ person_circle_svg = """
 """
 
 
-st.title("🎨 Anonymous Graffiti & Street Art Database 🎨")
+st.title("Anonymous Graffiti & Street Art Database")
+st.header("A graffiti and street art database focused on anonymity.")
 st.divider()
+
+# ----- GRAFF DB BANNER with custom CSS -----
+# --- Start of Base64 Image Embedding ---
+# Get the directory where the current script is located (e.g., 'your_app/pages')
+script_dir = os.path.dirname(os.path.abspath(__file__))
+# Go up one level to the root of the Streamlit app (e.g., 'your_app')
+app_root_dir = os.path.abspath(os.path.join(script_dir, os.pardir))
+
+# Construct the path to the new image: 'your_app/assets/GRAFF_DB-SCALED-NO-BG-(1).png'
+image_filename = "GRAFF_DB-BANNER.png"
+image_path = os.path.join(app_root_dir, "assets", image_filename)
+
+# Check if the image file exists
+if not os.path.exists(image_path):
+    st.error(f"Error: Image file not found at {image_path}")
+    st.info(f"Current script directory: {script_dir}")
+    st.info(f"Assumed app root directory: {app_root_dir}")
+    st.stop() # Stop execution if image not found
+
+# Read the image file and encode it to Base64
+with open(image_path, "rb") as image_file:
+    encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
+    # Set the MIME type for PNG
+    image_mime_type = "image/png"
+
+image_src_base64 = f"data:{image_mime_type};base64,{encoded_image}"
+# --- End of Base64 Image Embedding ---
+
+
+# HTML and CSS for the responsive glow/flicker animation
+animated_logo_html = f"""
+<style>
+  .logo-container {{
+    /* Make the container responsive and BIGGER */
+    width: 95%; /* Take up 95% of its parent's width (Streamlit column) */
+    max-width: 900px; /* Set a new maximum width */
+    height: auto;   /* Let height adjust proportionally */
+    
+    display: flex;
+    justify-content: flex-start; /* Changed to align left */
+    align-items: center;
+    margin: 1px 0 1px 0; /* Top/Bottom 50px, Left/Right 0px */
+    
+    overflow: hidden;
+    padding: 20px; 
+  }}
+  .animated-logo {{
+    max-width: 100%; /* Image will scale down to fit its container */
+    height: auto;    /* Maintain aspect ratio */
+    display: block;  /* Ensures it behaves like a block element */
+
+    /* Animation properties: Using the adapted flicker-in-glow animation logic */
+    -webkit-animation: image-flicker-in-glow 4s linear both;
+    animation: image-flicker-in-glow 4s linear both;
+    /* Initial filter for when animation starts/ends */
+    filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5));
+  }}
+
+  /* Adapted animation for images to simulate "text-flicker-in-glow" */
+  @-webkit-keyframes image-flicker-in-glow {{
+    0% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0)); /* No shadow */
+    }}
+    10% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    10.1% {{
+      opacity: 1;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0)); /* No shadow */
+    }}
+    10.2% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    20% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    20.1% {{
+      opacity: 1;
+      filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.25));
+    }}
+    20.6% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    30% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    30.1% {{
+      opacity: 1;
+      filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.45), 0 0 60px rgba(255, 255, 255, 0.25));
+    }}
+    30.5% {{
+      opacity: 1;
+      filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.45), 0 0 60px rgba(255, 255, 255, 0.25));
+    }}
+    30.6% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    45% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    45.1% {{
+      opacity: 1;
+      filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.45), 0 0 60px rgba(255, 255, 255, 0.25));
+    }}
+    50% {{
+      opacity: 1;
+      filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.45), 0 0 60px rgba(255, 255, 255, 0.25));
+    }}
+    55% {{
+      opacity: 1;
+      filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.45), 0 0 60px rgba(255, 255, 255, 0.25));
+    }}
+    55.1% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    57% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    57.1% {{
+      opacity: 1;
+      filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.55), 0 0 60px rgba(255, 255, 255, 0.35));
+    }}
+    60% {{
+      opacity: 1;
+      filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.55), 0 0 60px rgba(255, 255, 255, 0.35));
+    }}
+    60.1% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    65% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    65.1% {{
+      opacity: 1;
+      filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.55), 0 0 60px rgba(255, 255, 255, 0.35), 0 0 100px rgba(255, 255, 255, 0.1));
+    }}
+    75% {{
+      opacity: 1;
+      filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.55), 0 0 60px rgba(255, 255, 255, 0.35), 0 0 100px rgba(255, 255, 255, 0.1));
+    }}
+    75.1% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    77% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    77.1% {{
+      opacity: 1;
+      filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.55), 0 0 60px rgba(255, 255, 255, 0.4), 0 0 110px rgba(255, 255, 255, 0.2), 0 0 100px rgba(255, 255, 255, 0.1));
+    }}
+    85% {{
+      opacity: 1;
+      filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.55), 0 0 60px rgba(255, 255, 255, 0.4), 0 0 110px rgba(255, 255, 255, 0.2), 0 0 100px rgba(255, 255, 255, 0.1));
+    }}
+    85.1% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    86% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    86.1% {{
+      opacity: 1;
+      filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.6), 0 0 60px rgba(255, 255, 255, 0.45), 0 0 110px rgba(255, 255, 255, 0.25), 0 0 100px rgba(255, 255, 255, 0.1));
+    }}
+    100% {{
+      opacity: 1;
+      filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.6), 0 0 60px rgba(255, 255, 255, 0.45), 0 0 110px rgba(255, 255, 255, 0.25), 0 0 100px rgba(255, 255, 255, 0.1));
+    }}
+  }}
+  @keyframes image-flicker-in-glow {{
+    0% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    10% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    10.1% {{
+      opacity: 1;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    10.2% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    20% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    20.1% {{
+      opacity: 1;
+      filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.25));
+    }}
+    20.6% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    30% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    30.1% {{
+      opacity: 1;
+      filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.45), 0 0 60px rgba(255, 255, 255, 0.25));
+    }}
+    30.5% {{
+      opacity: 1;
+      filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.45), 0 0 60px rgba(255, 255, 255, 0.25));
+    }}
+    30.6% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    45% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    45.1% {{
+      opacity: 1;
+      filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.45), 0 0 60px rgba(255, 255, 255, 0.25));
+    }}
+    50% {{
+      opacity: 1;
+      filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.45), 0 0 60px rgba(255, 255, 255, 0.25));
+    }}
+    55% {{
+      opacity: 1;
+      filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.45), 0 0 60px rgba(255, 255, 255, 0.25));
+    }}
+    55.1% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    57% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    57.1% {{
+      opacity: 1;
+      filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.55), 0 0 60px rgba(255, 255, 255, 0.35));
+    }}
+    60% {{
+      opacity: 1;
+      filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.55), 0 0 60px rgba(255, 255, 255, 0.35));
+    }}
+    60.1% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    65% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    65.1% {{
+      opacity: 1;
+      filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.55), 0 0 60px rgba(255, 255, 255, 0.35), 0 0 100px rgba(255, 255, 255, 0.1));
+    }}
+    75% {{
+      opacity: 1;
+      filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.55), 0 0 60px rgba(255, 255, 255, 0.35), 0 0 100px rgba(255, 255, 255, 0.1));
+    }}
+    75.1% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    77% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    77.1% {{
+      opacity: 1;
+      filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.55), 0 0 60px rgba(255, 255, 255, 0.4), 0 0 110px rgba(255, 255, 255, 0.2), 0 0 100px rgba(255, 255, 255, 0.1));
+    }}
+    85% {{
+      opacity: 1;
+      filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.55), 0 0 60px rgba(255, 255, 255, 0.4), 0 0 110px rgba(255, 255, 255, 0.2), 0 0 100px rgba(255, 255, 255, 0.1));
+    }}
+    85.1% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    86% {{
+      opacity: 0;
+      filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+    }}
+    86.1% {{
+      opacity: 1;
+      filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.6), 0 0 60px rgba(255, 255, 255, 0.45), 0 0 110px rgba(255, 255, 255, 0.25), 0 0 100px rgba(255, 255, 255, 0.1));
+    }}
+    100% {{
+      opacity: 1;
+      filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.6), 0 0 60px rgba(255, 255, 255, 0.45), 0 0 110px rgba(255, 255, 255, 0.25), 0 0 100px rgba(255, 255, 255, 0.1));
+    }}
+  }}
+</style>
+<div class="logo-container">
+  <img src="{image_src_base64}" class="animated-logo" alt="Animated GRAFF DB Logo">
+</div>
+"""
+
+# Embed the HTML component
+components.html(animated_logo_html, height=310) # You might need to fine-tune this value
+# ----- End of GRAFF DB BANNER with custom CSS -----
+
+
 
 st.markdown(
     """
     <div style="display: flex; font-size: 1.5rem; margin-bottom: 0px;">
-    I've always had an interest in both graffiti and computers.  <br>
-    When I was getting into graffiti, I found it difficult to find a database for inspiration or to check if certain names were overused.  <br>
-    That's why I created this platform.
+    I've always had a keen interest in both graffiti and computers.  <br>
+    When I was first getting into designing graffiti pieces and making street art, I found it difficult to find a centralized database for inspiration or to quickly check if certain names or styles were overused.  <br>
+    This personal challenge was the driving force behind creating this platform.  <br> 
+    Contribute anonymously to a worldwide street art database – Discover art from across the globe, or easily find pieces nearest to your location to explore local scenes.
     </div>
     """, unsafe_allow_html=True
 )
@@ -61,9 +414,10 @@ st.markdown(
 st.markdown(
     """
     <div style="display: flex; font-size: 1.1rem; margin-top: 12px;">
-    Built with Python and Streamlit.
+    Website built with Python and Streamlit.
+    Data is stored in an SQLite database.
     The interactive map is powered by streamlit-folium, integrating Folium maps (leveraging Leaflet.js and OpenStreetMap data).  <br>
-    Thanks to all the contributors behind these amazing open-source tools! &nbsp;&nbsp;❤
+    Thanks to all the contributors behind these amazing open-source tools and datasets! &nbsp;&nbsp;❤
     </div>
     """, unsafe_allow_html=True
 )
@@ -82,12 +436,24 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
+# Combined X icon and text on one line
+st.markdown(
+    f"""
+    <div style="display: flex; align-items: center; font-size: 1.25rem; margin-top: 14px;">
+        {x_svg}&nbsp;X:&nbsp;
+        <a href="https://x.com/Roadbobek" target="_blank" style="color: #007bff; text-decoration: none; font-weight: bold;">Roadbobek</a>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
 # Combined Email icon and text on one line
 st.markdown(
     f"""
     <div style="display: flex; align-items: center; font-size: 1.25rem; margin-top: 14px;">
         {email_svg}&nbsp;Email:&nbsp;
-        <a href="mailto:Roadbobek1234@gmail.com" target="_blank" style="color: #007bff; text-decoration: none; font-weight: bold;">Roadbobek1234@gmail.com</a>
+        <a href="mailto:contact.roadbobek@gmail.com" target="_blank" style="color: #007bff; text-decoration: none; font-weight: bold;">contact.roadbobek@gmail.com</a>
     </div>
     """,
     unsafe_allow_html=True
@@ -118,17 +484,6 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Combined X icon and text on one line
-st.markdown(
-    f"""
-    <div style="display: flex; align-items: center; font-size: 1.25rem; margin-top: 14px;">
-        {x_svg}&nbsp;X:&nbsp;
-        <a href="https://x.com/Roadbobek" target="_blank" style="color: #007bff; text-decoration: none; font-weight: bold;">Roadbobek</a>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
 # Combined Steam icon and text on one line
 st.markdown(
     f"""
@@ -143,19 +498,33 @@ st.markdown(
 st.divider()
 st.text("(oﾟvﾟ)ノ            Scroll down ▽")
 
-# Runs 8 times
-for i in range(7):
+# Runs 28 times
+for i in range(27):
+    st.write("")
+
+
+st.image("assets//GRAFF_DB-BANNER.png")
+
+# Runs 28 times
+for i in range(27):
     st.write("")
 
 st.image("assets//AG&SAD - no bg - scaled 2.png")
-st.image("assets//GRAFF DB - NO BG.png")
-# st.image("assets//GRAFF DB - NO BG - GREEN.png")
-st.image("assets//GRAFF DB - SCALED - NO BG (1).png")
-# st.image("assets//GRAFF DB.png")
 
-# Runs 12 times
-for i in range(11):
+# Runs 28 times
+for i in range(27):
     st.write("")
+
+
+st.image("assets//GRAFF_DB-SCALED-NO-BG-(1).png")
+st.image("assets//GRAFF DB - NO BG.png")
+
+
+# Runs 28 times
+for i in range(27):
+    st.write("")
+
+
 
 # import time
 # with st.empty():

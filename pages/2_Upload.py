@@ -9,6 +9,7 @@ from streamlit_folium import st_folium, folium_static
 import requests
 import time
 
+
 # ——— Page Config & Title ———
 st.set_page_config(
     page_title="Anonymous Graffiti & Street Art Database",
@@ -16,11 +17,36 @@ st.set_page_config(
     # layout="wide"
 )
 
+# Apply custom CSS for global styling
+st.markdown("""
+    <style>
+    
+        /* Styles for the logo when sidebar is EXPANDED (it's inside the 'stSidebarHeader' div) */
+        [data-testid="stSidebarHeader"] img.stLogo {
+            width: 240px !important; /* **MAKE IT BIGGER WHEN EXPANDED** */
+            height: auto !important; /* Maintain aspect ratio */
+        }
+
+        /* Styles for the logo when sidebar is COLLAPSED (it's inside the 'stSidebarCollapsedControl' div) */
+        [data-testid="stSidebarCollapsedControl"] img.stLogo {
+            width: 120px !important; /* **MAKE IT NORMAL/SMALLER WHEN COLLAPSED** */
+            height: auto !important; /* Maintain aspect ratio */
+        }
+
+        /* Apply a smooth transition effect to the logo's width */
+        img.stLogo {
+            transition: width 0.3s ease-in-out !important;
+        }
+        
+    </style>
+""", unsafe_allow_html=True)
+
 # Logo of the app
-st.logo(image="assets//AG&SAD - no bg - scaled 2.png", size="large")
+st.logo(image="assets//GRAFF_DB-BANNER.png", size="large")
 
 st.title("⬆️ Upload a New Graffiti Post")
 st.divider()
+
 
 # ——— Session‑state init ———
 for key, default in [
@@ -53,7 +79,8 @@ CREATE TABLE IF NOT EXISTS posts (
     dislikes INTEGER DEFAULT 0,
     reports INTEGER DEFAULT 0,
     latitude REAL,
-    longitude REAL
+    longitude REAL,
+    removed INTEGER DEFAULT 0
 )
 """)
 conn.commit()
