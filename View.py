@@ -359,10 +359,10 @@ for post in posts:
                 show_full_image(post_id, file_name) # Open full resolution dialog
 
         with col2:
-            st.subheader(" Artist: " + (artist or "Unknown Artist")) # Display artist or "Unknown"
+            st.subheader("Artist: " + (artist or "Unknown Artist")) # Display artist or "Unknown"
 
             # Display location details
-            st.caption(f" 📍 {location or 'Unknown Location'} | [{lat}, {lon}]")
+            st.caption(f"📍 {location or 'Unknown Location'} | [{lat}, {lon}]")
             st.caption(f"📷 Taken: {time_taken or 'Unknown'}  |  ⬆️ Uploaded: {upload_time}")
             st.write(description or "No description provided.") # Display description
             st.caption(f"ID: {post_id}") # Display post ID
