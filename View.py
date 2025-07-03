@@ -363,7 +363,7 @@ for post in posts:
 
             # Display location details
             st.caption(f"📍 {location or 'Unknown Location'} | [{lat}, {lon}]")
-            st.caption(f"📷 Taken: {time_taken or 'Unknown'}  |  ⬆️ Uploaded: {upload_time}")
+            st.caption(f"📷 Taken: {time_taken or 'Unknown'} (Uploader's Timezone)  |  ⬆️ Uploaded: {upload_time} (UTC)")
             st.write(description or "No description provided.") # Display description
             st.caption(f"ID: {post_id}") # Display post ID
 

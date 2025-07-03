@@ -130,7 +130,7 @@ for post in posts:
             st.divider()
 
             # Display post time stamps
-            st.caption(f"<h5 style='margin-bottom: -35px;'>📷 Taken: {time_taken or 'Unknown'}  |  ⬆️ Uploaded: {upload_time}</h5>", unsafe_allow_html=True)
+            st.caption(f"<h5 style='margin-bottom: -35px;'>📷 Taken: {time_taken or 'Unknown'} (Uploader's Timezone)  |  ⬆️ Uploaded: {upload_time} (UTC)</h5>", unsafe_allow_html=True)
             st.divider()
 
             # Display post description
