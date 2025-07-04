@@ -32,10 +32,16 @@ Thanks to all the contributors behind these amazing open-source tools and librar
 
 ## Requirements
 
+#### To install all requirements at once run `pip install -r requirements.txt` <br> *(I recommend you do this in a new virtual environment.)*
+
 * Python 3.13:
-    * **Streamlit:** (Python package) Install via pip: `pip install streamlit`
-    * **Folium:** (Python package) Install via pip: `pip install folium`
-    * **streamlit-folium:** (Python package) Install via pip: `pip install streamlit-folium`
+  * **Streamlit:** (Python package) Install via pip: `pip install streamlit`
+  * **Pillow:** (Python package) Install via pip: `pip install Pillow`
+  * **requests:** (Python package) Install via pip: `pip install requests`
+  * **folium:** (Python package) Install via pip: `pip install folium`
+  * **streamlit-folium:** (Python package) Install via pip: `pip install streamlit-folium`
+  * **bcrypt:** (Python package) Install via pip: `pip install bcrypt`
+  * **captcha:** (Python package) Install via pip: `pip install captcha`
 
 ## License
 
