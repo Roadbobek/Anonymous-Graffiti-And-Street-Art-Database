@@ -16,7 +16,7 @@ st.set_page_config(
 # Apply custom CSS for global styling
 st.markdown("""
     <style>
-    
+        
         /* Styles for the logo when sidebar is EXPANDED (it's inside the 'stSidebarHeader' div) */
         [data-testid="stSidebarHeader"] img.stLogo {
             width: 240px !important; /* **MAKE IT BIGGER WHEN EXPANDED** */
@@ -30,9 +30,9 @@ st.markdown("""
         }
 
         /* Apply a smooth transition effect to the logo's width */
-        img.stLogo {
-            transition: width 0.3s ease-in-out !important;
-        }
+        /* img.stLogo { */
+            /* transition: width 0.3s ease-in-out !important; */
+        /* } */
         
     </style>
 """, unsafe_allow_html=True)
@@ -60,7 +60,7 @@ def resize_to_fit(path, max_size=(900, 900)):
 st.logo(image="assets//GRAFF_DB-BANNER.png", size="large")
 
 # Title of the page
-st.header("👁️ Admin Panel 🔒")
+st.header("🔒 Admin Panel")
 st.divider() # Divider under header
 
 

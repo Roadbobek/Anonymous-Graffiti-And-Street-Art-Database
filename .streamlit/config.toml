@@ -1,4 +1,5 @@
-[server]
+[browser]
+gatherUsageStats = false
 
-# Max size, in megabytes, for files uploaded with the file_uploader.
+[server]
 maxUploadSize = 32  # Default: 200

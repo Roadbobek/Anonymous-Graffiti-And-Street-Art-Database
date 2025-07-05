@@ -35,7 +35,7 @@ Thanks to all the contributors behind these amazing open-source tools and librar
 #### To install all requirements at once run `pip install -r requirements.txt` <br> *(I recommend you do this in a new virtual environment.)*
 
 * Python 3.13:
-  * **Streamlit:** (Python package) Install via pip: `pip install streamlit`
+  * **Streamlit (Version 1.45.1):** (Python package) Install via pip: `pip install streamlit==1.45.1`
   * **Pillow:** (Python package) Install via pip: `pip install Pillow`
   * **requests:** (Python package) Install via pip: `pip install requests`
   * **folium:** (Python package) Install via pip: `pip install folium`

@@ -14,7 +14,7 @@ st.set_page_config(
 # Apply custom CSS for global styling
 st.markdown("""
     <style>
-    
+        
         /* Styles for the logo when sidebar is EXPANDED (it's inside the 'stSidebarHeader' div) */
         [data-testid="stSidebarHeader"] img.stLogo {
             width: 240px !important; /* **MAKE IT BIGGER WHEN EXPANDED** */
@@ -28,12 +28,13 @@ st.markdown("""
         }
 
         /* Apply a smooth transition effect to the logo's width */
-        img.stLogo {
-            transition: width 0.3s ease-in-out !important;
-        }
+        /* img.stLogo { */
+            /* transition: width 0.3s ease-in-out !important; */
+        /* } */
         
     </style>
 """, unsafe_allow_html=True)
+
 
 # Logo of the app
 st.logo(image="assets//GRAFF_DB-BANNER.png", size="large")
