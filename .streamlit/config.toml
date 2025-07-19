@@ -3,3 +3,6 @@ gatherUsageStats = false
 
 [server]
 maxUploadSize = 32  # Default: 200
+
+[client]
+showSidebarNavigation = false

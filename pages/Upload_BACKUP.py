@@ -14,8 +14,15 @@
 # st.set_page_config(
 #     page_title="Anonymous Graffiti & Street Art Database",
 #     page_icon="🎨",
-#     # layout="wide"
+#     layout="centered"
 # )
+#
+# # - Sidebar navigation -
+# st.sidebar.title("Navigation")
+# st.sidebar.page_link('View.py', label='**View** Posts')
+# st.sidebar.page_link('pages/2_Upload.py', label='**Upload** New Post')
+# st.sidebar.page_link('pages/4_About_The_Project.py', label='*About The Project*')
+#
 #
 # # Apply custom CSS for global styling
 # st.markdown("""
@@ -34,12 +41,13 @@
 #         }
 #
 #         /* Apply a smooth transition effect to the logo's width */
-#         img.stLogo {
-#             transition: width 0.3s ease-in-out !important;
-#         }
+#         /* img.stLogo { */
+#             /* transition: width 0.3s ease-in-out !important; */
+#         /* } */
 #
 #     </style>
 # """, unsafe_allow_html=True)
+#
 #
 # # Logo of the app
 # st.logo(image="assets//GRAFF_DB-BANNER.png", size="large")
@@ -79,7 +87,8 @@
 #     dislikes INTEGER DEFAULT 0,
 #     reports INTEGER DEFAULT 0,
 #     latitude REAL,
-#     longitude REAL
+#     longitude REAL,
+#     removed INTEGER DEFAULT 0
 # )
 # """)
 # conn.commit()
@@ -119,10 +128,10 @@
 #         )
 #         with st.form("captcha_form", clear_on_submit=True):
 #             c1, c2 = st.columns(2)
-#             img = ImageCaptcha(width=200, height=150)
+#             img = ImageCaptcha(width=350, height=150)
 #             c1.image(img.generate(st.session_state['Captcha']))
 #             inp = c2.text_input("Enter Captcha:")
-#             ok = st.form_submit_button("Verify")
+#             ok = st.form_submit_button("Verify", use_container_width=True)
 #             if ok:
 #                 if inp.strip().lower() == st.session_state['Captcha'].lower():
 #                     st.session_state['controllo'] = True
