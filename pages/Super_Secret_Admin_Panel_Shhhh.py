@@ -71,7 +71,7 @@ st.divider() # Divider under header
 
 
 # --- Secure admin login ---
-ADMIN_HASHED_PASSWORD = """$2b$12$e/7ptQltfdaS71bdUi7tJubWmAUQSVV9Lf6f6q6g4Qx8zZMgLBG7O""" # The password is "Password123"
+ADMIN_HASHED_PASSWORD = """$2b$12$S6OJZ4fNJ9Cn2q0K7qi8Q.Xci5HRs73EuEvjkWnPVCouWOfCv2iH2"""
 
 # Admin password input field
 password_input = st.text_input("🗝️ Enter admin password:", type="password")

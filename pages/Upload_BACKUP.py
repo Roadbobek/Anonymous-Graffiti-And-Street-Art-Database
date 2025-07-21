@@ -8,6 +8,8 @@
 # from streamlit_folium import st_folium, folium_static
 # import requests
 # import time
+# import boto3
+# from io import BytesIO
 #
 #
 # # ——— Page Config & Title ———
@@ -52,7 +54,8 @@
 # # Logo of the app
 # st.logo(image="assets//GRAFF_DB-BANNER.png", size="large")
 #
-# st.title("⬆️ Upload a New Graffiti Post")
+# st.write("<h1 style='text-align: center; margin-bottom: -30px;'>⬆️ Upload a New Graffiti Post</h1>", unsafe_allow_html=True)
+# # st.title("⬆️ Upload a New Graffiti Post")
 # st.divider()
 #
 #
@@ -65,11 +68,80 @@
 # ]:
 #     st.session_state.setdefault(key, default)
 #
+#
+# # ------- Cloudflare R2 stuff --------
+# # TODO: COMMENT WHEN DEPLOYING!
+# from dotenv import load_dotenv # Uncomment for local development if using .env file
+# load_dotenv() # Load environment variables from .env file (for local testing)
+#
+#
+# # --- R2 Configuration (assuming environment variables are set) ---
+# R2_ACCOUNT_ID = os.getenv("R2_ACCOUNT_ID")
+# R2_ACCESS_KEY_ID = os.getenv("R2_ACCESS_KEY_ID")
+# R2_SECRET_ACCESS_KEY = os.getenv("R2_SECRET_ACCESS_KEY")
+# R2_BUCKET_NAME = os.getenv("R2_BUCKET_NAME")
+#
+#
+# # Check if essential R2 variables are available
+# if not all([R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME]):
+#     st.error("Error: R2 credentials or bucket name are not set as environment variables.")
+#     st.stop() # Stop the app if configuration is missing
+#
+# # Construct the R2 endpoint URL
+# R2_ENDPOINT_URL = f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+# R2_REGION = "auto" # R2 is globally distributed
+#
+# # Initialize the S3 client for R2
+# try:
+#     s3_client = boto3.client(
+#         service_name="s3",
+#         endpoint_url=R2_ENDPOINT_URL,
+#         aws_access_key_id=R2_ACCESS_KEY_ID,
+#         aws_secret_access_key=R2_SECRET_ACCESS_KEY,
+#         region_name=R2_REGION
+#     )
+#     # Optional: A quick test to confirm connectivity (e.g., list buckets). This can be removed in production.
+#     # s3_client.list_buckets()
+#     # st.sidebar.success("✅ Connected to Cloudflare R2!") # For debugging
+# except Exception as e:
+#     st.error(f"Failed to connect to Cloudflare R2: {e}. Please check your credentials.")
+#     st.stop()
+#
+#
+# # --- Corrected Function to upload an image to Cloudflare R2 ---
+# # This function now takes the unique object_name as an argument.
+# def upload_image_to_r2(uploaded_file, object_name):
+#     """
+#     Uploads a Streamlit UploadedFile object to Cloudflare R2 using a provided unique object_name.
+#
+#     :param uploaded_file: Streamlit UploadedFile object.
+#     :param object_name: The desired UNIQUE name (key) for the object in the R2 bucket.
+#                         This should be generated before calling this function.
+#     :return: True on success, False on failure.
+#     """
+#     if uploaded_file is None:
+#         st.error("No file provided for upload to R2.")
+#         return False
+#
+#     if not object_name:
+#         st.error("Object name (key) must be provided for R2 upload.")
+#         return False
+#
+#     try:
+#         # st.file_uploader returns a file-like object, which upload_fileobj accepts
+#         s3_client.upload_fileobj(uploaded_file, R2_BUCKET_NAME, object_name)
+#         return True
+#     except Exception as e:
+#         st.error(f"Error uploading image '{object_name}' to Cloudflare R2: {e}")
+#         return False
+#
+#
+#
 # # ——— Paths & DB setup ———
 # script_dir = os.path.dirname(os.path.abspath(__file__))
 # parent_dir = os.path.abspath(os.path.join(script_dir, os.pardir))
-# upload_dir = os.path.join(parent_dir, "graffiti_uploads")
-# os.makedirs(upload_dir, exist_ok=True)
+# # upload_dir = os.path.join(parent_dir, "graffiti_uploads") # <-- This is no longer used for R2 uploads
+# # os.makedirs(upload_dir, exist_ok=True) # <-- No longer needed for R2 uploads
 # db_path = os.path.join(parent_dir, "graffiti.db")
 # conn = sqlite3.connect(db_path, check_same_thread=False)
 # cursor = conn.cursor()
@@ -77,7 +149,7 @@
 # cursor.execute("""
 # CREATE TABLE IF NOT EXISTS posts (
 #     id INTEGER PRIMARY KEY AUTOINCREMENT,
-#     file_name TEXT NOT NULL,
+#     r2_object_key TEXT NOT NULL,
 #     location TEXT,
 #     artist TEXT,
 #     time_taken TEXT,
@@ -92,6 +164,7 @@
 # )
 # """)
 # conn.commit()
+#
 #
 # # ——— Helpers ———
 # DATE_REGEX = re.compile(
@@ -128,8 +201,8 @@
 #         )
 #         with st.form("captcha_form", clear_on_submit=True):
 #             c1, c2 = st.columns(2)
-#             img = ImageCaptcha(width=350, height=150)
-#             c1.image(img.generate(st.session_state['Captcha']))
+#             img = ImageCaptcha(width=300, height=100)
+#             c1.image(img.generate(st.session_state['Captcha']), use_container_width=True)
 #             inp = c2.text_input("Enter Captcha:")
 #             ok = st.form_submit_button("Verify", use_container_width=True)
 #             if ok:
@@ -147,8 +220,11 @@
 #
 # # ——— Main upload page ———
 # def your_main():
-#     st.subheader("🎉 You’re not a robot — upload away!")
-#     st.divider()
+#     st.markdown("<h5 style='text-align: center; margin-top: -20px; margin-bottom: -15px;'>When you upload an image here, the original file is stored.</h5>", unsafe_allow_html=True)
+#     st.markdown("<h5 style='text-align: center; margin-top: -15px; margin-bottom: -31px;'>Maintaining full authenticity. Preservation is our priority.</h5>", unsafe_allow_html=True)
+#     st.markdown("<hr style='margin-top: 20px; margin-bottom: 30px;'>", unsafe_allow_html=True)
+#     # st.write("---", unsafe_allow_html=True) # same result as st.divider()
+#     # st.divider()
 #
 #     # 1) Image upload
 #     st.subheader("1. Upload Image")
@@ -254,10 +330,11 @@
 #
 #     # 7) Upload button & final validation
 #     if st.button("Upload Post", use_container_width=True, type="primary"):
-#         if time.time() < st.session_state['post_cooldown_end_time']:
+#         # Cooldown Check
+#         if time.time() < st.session_state.get('post_cooldown_end_time', 0):
 #             st.warning(f"⌚ Please wait {abs(time.time() - st.session_state['post_cooldown_end_time']):.2f} seconds before uploading a new post.")
 #         else:
-#
+#             # --- Pre-upload Validations ---
 #             if not uploaded_file:
 #                 st.error("❌ Please upload an image."); st.stop()
 #             if not artist:
@@ -271,28 +348,32 @@
 #             if time_sel == "Manual" and is_invalid_date(time_taken):
 #                 st.error("❌ Invalid date format."); st.stop()
 #
-#             # Save image file
+#             # --- Image Naming for R2 (Replacing local file saving logic) ---
+#             # Generate a unique name for the image in R2.
+#             # This replaces the entire 'while os.path.exists(path)' block.
 #             base, ext = os.path.splitext(uploaded_file.name)
-#             base = base[:50]
-#             new_name = base + ext
-#             path = os.path.join(upload_dir, new_name)
-#             i = 1
-#             while os.path.exists(path):
-#                 new_name = f"{base}_{i}{ext}"
-#                 path = os.path.join(upload_dir, new_name)
-#                 i += 1
-#             with open(path, "wb") as f:
-#                 f.write(uploaded_file.getbuffer())
+#             base = base[:50] # Limit base name length for cleaner keys
+#             unique_suffix = int(time.time() * 1000) # Millisecond timestamp for high uniqueness
 #
-#             # Insert into DB
+#             # This will be the name (key) in your R2 bucket AND the file_name in your DB
+#             r2_object_key = f"{base}_{unique_suffix}{ext}"
+#
+#             # --- Upload Image to R2 ---
+#             upload_successful = upload_image_to_r2(uploaded_file, r2_object_key)
+#
+#             if not upload_successful:
+#                 st.error("❌ Failed to upload image to Cloudflare R2. Post not saved.");
+#                 st.stop() # Stop if R2 upload fails to prevent orphaned DB entries
+#
+#             # --- Insert into DB ---
 #             lonlat = st.session_state['selected_location'] or (None, None)
 #             cursor.execute("""
 #                 INSERT INTO posts
-#                 (file_name, location, artist, time_taken, description, latitude, longitude)
+#                 (r2_object_key, location, artist, time_taken, description, latitude, longitude)
 #                 VALUES (?, ?, ?, ?, ?, ?, ?)
 #             """, (
-#                 new_name,
-#                 st.session_state['location_text'],
+#                 r2_object_key, # Store the unique R2 object key here
+#                 st.session_state.get('location_text', ''),
 #                 artist,
 #                 str(time_taken),
 #                 description,
@@ -300,13 +381,14 @@
 #                 lonlat[1]
 #             ))
 #             conn.commit()
-#             st.success(f"✅ Uploaded {new_name} successfully!")
+#             st.success(f"✅ Uploaded '{r2_object_key}' to cloud successfully!")
 #
 #
-#         # Start 5 second cooldown
-#         cooldown_duration_seconds = 5
-#         if time.time() >= st.session_state['post_cooldown_end_time']:
-#             st.session_state['post_cooldown_end_time'] = time.time() + cooldown_duration_seconds
+#             # Start 5 second cooldown
+#             cooldown_duration_seconds = 5
+#             if time.time() >= st.session_state['post_cooldown_end_time']: # This condition usually means it's already expired or first upload
+#                 st.session_state['post_cooldown_end_time'] = time.time() + cooldown_duration_seconds
+#             # st.rerun() # Trigger a rerun to clear form, update UI, and apply cooldown
 #
 #
 # # ——— App flow ———

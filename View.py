@@ -8,6 +8,8 @@ import folium
 from streamlit_folium import st_folium, folium_static
 import math
 import time
+import boto3
+from io import BytesIO
 
 
 # Connect to the database or make it
@@ -60,7 +62,8 @@ st.markdown("""
 # Logo of the app
 st.logo(image="assets//GRAFF_DB-BANNER.png", size="large")
 
-st.title("🖼️ View Graffiti Posts")
+st.write("<h1 style='text-align: center;margin-bottom: -30px;'>🖼️ View Graffiti Posts</h1>", unsafe_allow_html=True)
+# st.title("🖼️ View Graffiti Posts")
 st.divider()
 
 # Apply custom CSS for global styling
@@ -117,14 +120,78 @@ for key, default in [
 
     # Dictionary to manage local, temporary warning messages (keyed by "action_postID")
     ('active_local_warnings', {}),
+
+    ('r2_object_key_for_dialog', None)
 ]:
     st.session_state.setdefault(key, default)
 
 
-# ---Helper functions---
-def resize_to_fit(path, max_size=(900, 900)):
-    """Resizes an image to fit within specified maximum dimensions."""
-    img = Image.open(path)
+# ------- Cloudflare R2 stuff --------
+# TODO: COMMENT WHEN DEPLOYING!
+from dotenv import load_dotenv # Uncomment for local development if using .env file
+load_dotenv() # Load environment variables from .env file (for local testing)
+
+
+# --- R2 Configuration (assuming environment variables are set) ---
+R2_ACCOUNT_ID = os.getenv("R2_ACCOUNT_ID")
+R2_ACCESS_KEY_ID = os.getenv("R2_ACCESS_KEY_ID")
+R2_SECRET_ACCESS_KEY = os.getenv("R2_SECRET_ACCESS_KEY")
+R2_BUCKET_NAME = os.getenv("R2_BUCKET_NAME")
+
+
+# Check if essential R2 variables are available
+if not all([R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME]):
+    st.error("Error: R2 credentials or bucket name are not set as environment variables.")
+    st.stop() # Stop the app if configuration is missing
+
+# Construct the R2 endpoint URL
+R2_ENDPOINT_URL = f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+R2_REGION = "auto" # R2 is globally distributed
+
+# Initialize the S3 client for R2
+try:
+    s3_client = boto3.client(
+        service_name="s3",
+        endpoint_url=R2_ENDPOINT_URL,
+        aws_access_key_id=R2_ACCESS_KEY_ID,
+        aws_secret_access_key=R2_SECRET_ACCESS_KEY,
+        region_name=R2_REGION
+    )
+    # Optional: A quick test to confirm connectivity (e.g., list buckets). This can be removed in production.
+    # s3_client.list_buckets()
+    # st.sidebar.success("✅ Connected to Cloudflare R2!") # For debugging
+except Exception as e:
+    st.error(f"Failed to connect to Cloudflare R2: {e}. Please check your credentials.")
+    st.stop()
+
+
+# ------Helper functions------
+# Assuming s3_client and R2_BUCKET_NAME are defined and initialized
+def get_image_from_r2(object_key: str):
+    """
+    Retrieves an image from Cloudflare R2 given its object key.
+    Returns bytes of the image data, or None if an error occurs.
+    """
+    try:
+        response = s3_client.get_object(Bucket=R2_BUCKET_NAME, Key=object_key)
+        image_data = response['Body'].read()
+        return image_data
+    except Exception as e:
+        st.error(f"Error retrieving image '{object_key}' from R2: {e}")
+        return None
+
+
+def resize_to_fit(image_data, max_size=(900, 900)): # Takes image_data (bytes)
+    """Resizes an image (from bytes) to fit within specified maximum dimensions."""
+    if isinstance(image_data, bytes): # Check if input is bytes
+        img = Image.open(BytesIO(image_data)) # Open from bytes using BytesIO
+    else:
+        # This 'else' block would be for local file paths if you still needed them,
+        # but for R2, we'll primarily use the 'bytes' path.
+        # If you want to keep old local file compatibility, you could add:
+        # img = Image.open(image_data) # Assuming image_data is a path here
+        raise ValueError("image_data must be bytes or a file-like object.") # Better error for unexpected input
+
     img.thumbnail(max_size, Image.Resampling.LANCZOS) # Scales proportionally
     return img
 
@@ -142,13 +209,23 @@ def search_nominatim(query):
 
 
 @st.dialog("Full Resolution Image", width='large',)
-def show_full_image(post_id: int, file_name: str):
+def show_full_image_dialog():
     """
-    Displays the full-resolution image for a given post in a dialog.
+    Displays the full-resolution image for a given post in a dialog, fetched from R2.
+    It retrieves the r2_object_key from session_state.
     """
-    img_path = os.path.join(script_dir, "graffiti_uploads", file_name)
-    st.image(img_path, use_container_width=True) # Scales to app width
 
+    # Retrieve the r2_object_key from session_state
+    r2_object_key_for_dialog = st.session_state.get('r2_key_for_dialog')
+
+    if r2_object_key_for_dialog:
+        img_data_full = get_image_from_r2(r2_object_key_for_dialog)
+        if img_data_full:
+            st.image(img_data_full, use_container_width=True) # Display full image from bytes
+        else:
+            st.error("❌ Could not load full resolution image.")
+    else:
+        st.warning("❌ No image key found in R2 cloud for full resolution display.")
 
 
 
@@ -351,19 +428,22 @@ st.divider()
 for post in posts:
 
     # Unpack post data
-    post_id, file_name, location, artist, time_taken, description, upload_time, likes, dislikes, reports, lat, lon, removed = post
+    post_id, r2_object_key, location, artist, time_taken, description, upload_time, likes, dislikes, reports, lat, lon, removed = post
 
     # Create two columns for post display
     col1, col2 = st.columns([0.7, 0.3])
 
     if removed == 0:
         with col1:
-            image_path = os.path.join(script_dir, "graffiti_uploads", file_name) # Construct image path
-            img = resize_to_fit(image_path) # Resize image for display
+            img_data = get_image_from_r2(r2_object_key) # Use r2_object_key to get image data
+            img = resize_to_fit(img_data) # Resize image for display
             st.image(img) # Display image
 
+            # Pass the r2_object_key to the dialog for full resolution
             if st.button("View Full Resolution", key=f"view_full_{post_id}"):
-                show_full_image(post_id, file_name) # Open full resolution dialog
+                st.session_state['r2_key_for_dialog'] = r2_object_key # A dedicated key for the dialog, store the posts r2_object_key
+                show_full_image_dialog() # Call the decorated dialog function to open it
+
 
         with col2:
             st.subheader("Artist: " + (artist or "Unknown Artist")) # Display artist or "Unknown"
