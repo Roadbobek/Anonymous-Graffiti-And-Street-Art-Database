@@ -13,6 +13,13 @@ from io import BytesIO
 import psycopg2
 
 
+# ——— Page Config & Title ———
+st.set_page_config(
+    page_title="Anonymous Graffiti & Street Art Database",
+    page_icon="🎨",
+    layout="wide"
+)
+
 
 # -------------- PostgresSQL Stuff --------------
 # --- Retrieve PostgreSQL credentials from environment variables ---
@@ -55,13 +62,6 @@ if conn:
 
 
 
-
-# Set how the page looks in browser
-st.set_page_config(
-    page_title="Anonymous Graffiti & Street Art Database",
-    page_icon="🎨",
-    layout="wide"
-)
 
 # - Sidebar navigation -
 st.sidebar.title("Navigation")
