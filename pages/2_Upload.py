@@ -2,7 +2,7 @@ import streamlit as st
 from captcha.image import ImageCaptcha
 import random, string
 import os
-import sqlite3
+# import sqlite3
 import re
 import folium
 from streamlit_folium import st_folium, folium_static
@@ -10,6 +10,7 @@ import requests
 import time
 import boto3
 from io import BytesIO
+import psycopg2
 
 
 # ——— Page Config & Title ———
@@ -70,9 +71,9 @@ for key, default in [
 
 
 # ------- Cloudflare R2 stuff --------
-# TODO: COMMENT WHEN DEPLOYING!
-from dotenv import load_dotenv # Uncomment for local development if using .env file
-load_dotenv() # Load environment variables from .env file (for local testing)
+# TO-DO: COMMENT WHEN DEPLOYING!
+# from dotenv import load_dotenv # Uncomment for local development if using .env file
+# load_dotenv() # Load environment variables from .env file (for local testing)
 
 
 # --- R2 Configuration (assuming environment variables are set) ---
@@ -136,19 +137,50 @@ def upload_image_to_r2(uploaded_file, object_name):
         return False
 
 
+# -------------- PostgresSQL Stuff --------------
+# --- Retrieve PostgreSQL credentials from environment variables ---
+# These variables are loaded into the app's environment by systemd
+DB_HOST = os.getenv("PG_DB_HOST")
+DB_NAME = os.getenv("PG_DB_NAME")
+DB_USER = os.getenv("PG_DB_USER")
+DB_PASSWORD = os.getenv("PG_DB_PASSWORD")
+DB_PORT = os.getenv("PG_DB_PORT", "5432") # Default PostgreSQL port, provide a fallback
 
-# ——— Paths & DB setup ———
-script_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.abspath(os.path.join(script_dir, os.pardir))
-# upload_dir = os.path.join(parent_dir, "graffiti_uploads") # <-- This is no longer used for R2 uploads
-# os.makedirs(upload_dir, exist_ok=True) # <-- No longer needed for R2 uploads
-db_path = os.path.join(parent_dir, "graffiti.db")
-conn = sqlite3.connect(db_path, check_same_thread=False)
-cursor = conn.cursor()
+# --- Database Connection Function (using Streamlit's cache_resource for efficiency) ---
+@st.cache_resource
+def get_db_connection():
+    try:
+        conn = psycopg2.connect(
+            host=DB_HOST,
+            database=DB_NAME,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            port=DB_PORT
+        )
+        return conn
+    except Exception as e:
+        st.error(f"Failed to connect to the database: {e}")
+        st.stop() # Crucial for deployed apps: stop if DB connection fails
+        return None # In case st.stop() doesn't immediately exit
+
+# --- Establish the connection for your app ---
+conn = get_db_connection() # This will be your connection object
+if conn:
+    cursor = conn.cursor() # This will be your cursor object
+
+
+# # ——— Paths & DB setup ———
+# script_dir = os.path.dirname(os.path.abspath(__file__))
+# parent_dir = os.path.abspath(os.path.join(script_dir, os.pardir))
+# # upload_dir = os.path.join(parent_dir, "graffiti_uploads") # <-- This is no longer used for R2 uploads
+# # os.makedirs(upload_dir, exist_ok=True) # <-- No longer needed for R2 uploads
+# db_path = os.path.join(parent_dir, "graffiti.db")
+# conn = sqlite3.connect(db_path, check_same_thread=False)
+# cursor = conn.cursor()
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS posts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     r2_object_key TEXT NOT NULL,
     location TEXT,
     artist TEXT,
@@ -164,6 +196,26 @@ CREATE TABLE IF NOT EXISTS posts (
 )
 """)
 conn.commit()
+
+# cursor.execute("""
+# CREATE TABLE IF NOT EXISTS posts (
+#     id INTEGER PRIMARY KEY AUTOINCREMENT,
+#     r2_object_key TEXT NOT NULL,
+#     location TEXT,
+#     artist TEXT,
+#     time_taken TEXT,
+#     description TEXT,
+#     upload_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+#     likes INTEGER DEFAULT 0,
+#     dislikes INTEGER DEFAULT 0,
+#     reports INTEGER DEFAULT 0,
+#     latitude REAL,
+#     longitude REAL,
+#     removed INTEGER DEFAULT 0
+# )
+# """)
+# conn.commit()
+
 
 
 # ——— Helpers ———
@@ -365,12 +417,13 @@ def your_main():
                 st.error("❌ Failed to upload image to Cloudflare R2. Post not saved.");
                 st.stop() # Stop if R2 upload fails to prevent orphaned DB entries
 
+
             # --- Insert into DB ---
             lonlat = st.session_state['selected_location'] or (None, None)
             cursor.execute("""
                 INSERT INTO posts
                 (r2_object_key, location, artist, time_taken, description, latitude, longitude)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
             """, (
                 r2_object_key, # Store the unique R2 object key here
                 st.session_state.get('location_text', ''),
@@ -381,6 +434,23 @@ def your_main():
                 lonlat[1]
             ))
             conn.commit()
+
+            # lonlat = st.session_state['selected_location'] or (None, None)
+            # cursor.execute("""
+            #     INSERT INTO posts
+            #     (r2_object_key, location, artist, time_taken, description, latitude, longitude)
+            #     VALUES (?, ?, ?, ?, ?, ?, ?)
+            # """, (
+            #     r2_object_key, # Store the unique R2 object key here
+            #     st.session_state.get('location_text', ''),
+            #     artist,
+            #     str(time_taken),
+            #     description,
+            #     lonlat[0],
+            #     lonlat[1]
+            # ))
+            # conn.commit()
+
             st.success(f"✅ Uploaded '{r2_object_key}' to cloud successfully!")
 
 

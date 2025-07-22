@@ -1,5 +1,5 @@
 import streamlit as st
-import sqlite3
+# import sqlite3
 import os
 from PIL import Image
 from datetime import datetime
@@ -10,14 +10,50 @@ import math
 import time
 import boto3
 from io import BytesIO
+import psycopg2
 
 
-# Connect to the database or make it
-script_dir = os.path.dirname(os.path.abspath(__file__)) # Get the directory where the script lives
-db_path = os.path.join(script_dir, "graffiti.db") # Construct the full path to the DB
 
-conn = sqlite3.connect(db_path, check_same_thread=False) # Connect to the database
-cursor = conn.cursor()
+# -------------- PostgresSQL Stuff --------------
+# --- Retrieve PostgreSQL credentials from environment variables ---
+# These variables are loaded into the app's environment by systemd
+DB_HOST = os.getenv("PG_DB_HOST")
+DB_NAME = os.getenv("PG_DB_NAME")
+DB_USER = os.getenv("PG_DB_USER")
+DB_PASSWORD = os.getenv("PG_DB_PASSWORD")
+DB_PORT = os.getenv("PG_DB_PORT", "5432") # Default PostgreSQL port, provide a fallback
+
+# --- Database Connection Function (using Streamlit's cache_resource for efficiency) ---
+@st.cache_resource
+def get_db_connection():
+    try:
+        conn = psycopg2.connect(
+            host=DB_HOST,
+            database=DB_NAME,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            port=DB_PORT
+        )
+        return conn
+    except Exception as e:
+        st.error(f"Failed to connect to the database: {e}")
+        st.stop() # Crucial for deployed apps: stop if DB connection fails
+        return None # In case st.stop() doesn't immediately exit
+
+# --- Establish the connection for your app ---
+conn = get_db_connection() # This will be your connection object
+if conn:
+    cursor = conn.cursor() # This will be your cursor object
+
+
+# # Connect to the database or make it
+# script_dir = os.path.dirname(os.path.abspath(__file__)) # Get the directory where the script lives
+# db_path = os.path.join(script_dir, "graffiti.db") # Construct the full path to the DB
+#
+# conn = sqlite3.connect(db_path, check_same_thread=False) # Connect to the database
+# cursor = conn.cursor()
+
+
 
 
 # Set how the page looks in browser
@@ -127,9 +163,9 @@ for key, default in [
 
 
 # ------- Cloudflare R2 stuff --------
-# TODO: COMMENT WHEN DEPLOYING!
-from dotenv import load_dotenv # Uncomment for local development if using .env file
-load_dotenv() # Load environment variables from .env file (for local testing)
+# TO-DO: COMMENT WHEN DEPLOYING!
+# from dotenv import load_dotenv # Uncomment for local development if using .env file
+# load_dotenv() # Load environment variables from .env file (for local testing)
 
 
 # --- R2 Configuration (assuming environment variables are set) ---
@@ -244,9 +280,13 @@ if "id:" in search_term.lower(): # Use .lower() for case-insensitive check
         post_id_str = search_term.lower().split("id:")[1].strip()
         post_id = int(post_id_str) # Convert to integer
 
+
         # Execute search query specifically by ID using a placeholder
-        cursor.execute("SELECT * FROM posts WHERE id = ?", (post_id,))
-        posts = cursor.fetchall() # Fetch results for the ID search
+        cursor.execute("SELECT * FROM posts WHERE id = %s", (post_id,))
+        posts = cursor.fetchall()
+
+        # cursor.execute("SELECT * FROM posts WHERE id = ?", (post_id,))
+        # posts = cursor.fetchall() # Fetch results for the ID search
 
         if not posts: # If no post found for the ID
             st.info(f"No post found with ID: {post_id}")
@@ -258,16 +298,30 @@ if "id:" in search_term.lower(): # Use .lower() for case-insensitive check
         # posts remains empty as initialized, or becomes empty here.
 
 elif search_term:
-    # Execute search query if a search term is provided
+    # Execute search query if a search term is provided for PostgreSQL
+    # Using ILIKE for case-insensitive search, which is common for user-facing search
     cursor.execute("""
-    SELECT * FROM posts WHERE location LIKE ? OR artist LIKE ? OR description LIKE ? OR time_taken LIKE ? OR upload_time LIKE ?
+    SELECT * FROM posts
+    WHERE location ILIKE %s OR artist ILIKE %s OR description ILIKE %s OR time_taken ILIKE %s OR upload_time::text ILIKE %s
     """, (f"%{search_term}%", f"%{search_term}%", f"%{search_term}%", f"%{search_term}%", f"%{search_term}%"))
     posts = cursor.fetchall() # Fetch results for general search
 
 else:
-    # Fetch all posts if no search term, ordered by upload time
+    # Fetch all posts if no search term, ordered by upload time (PostgreSQL compatible)
     cursor.execute("SELECT * FROM posts ORDER BY upload_time DESC")
     posts = cursor.fetchall() # Fetch all posts by upload time
+
+# elif search_term:
+#     # Execute search query if a search term is provided
+#     cursor.execute("""
+#     SELECT * FROM posts WHERE location LIKE ? OR artist LIKE ? OR description LIKE ? OR time_taken LIKE ? OR upload_time LIKE ?
+#     """, (f"%{search_term}%", f"%{search_term}%", f"%{search_term}%", f"%{search_term}%", f"%{search_term}%"))
+#     posts = cursor.fetchall() # Fetch results for general search
+#
+# else:
+#     # Fetch all posts if no search term, ordered by upload time
+#     cursor.execute("SELECT * FROM posts ORDER BY upload_time DESC")
+#     posts = cursor.fetchall() # Fetch all posts by upload time
 
 
 
@@ -474,8 +528,10 @@ for post in posts:
 
                     if is_liked_by_user:
                         # If already liked, remove the like
-                        cursor.execute("UPDATE posts SET likes = likes - 1 WHERE id = ?", (post_id,))
+                        cursor.execute("UPDATE posts SET likes = likes - 1 WHERE id = %s", (post_id,))
                         conn.commit()
+                        # cursor.execute("UPDATE posts SET likes = likes - 1 WHERE id = ?", (post_id,))
+                        # conn.commit()
                         st.session_state['liked_posts'].remove(post_id) # Remove from liked set
                     elif current_time < st.session_state['like_cooldown_end_time']:
                         # If not liked, but cooldown is active
@@ -483,8 +539,10 @@ for post in posts:
                         message_content = f"⌚ Like cooldown: Please wait {time_left:.2f}s."
                     else:
                         # If not liked and cooldown is clear, perform like action
-                        cursor.execute("UPDATE posts SET likes = likes + 1 WHERE id = ?", (post_id,))
+                        cursor.execute("UPDATE posts SET likes = likes + 1 WHERE id = %s", (post_id,))
                         conn.commit()
+                        # cursor.execute("UPDATE posts SET likes = likes + 1 WHERE id = ?", (post_id,))
+                        # conn.commit()
                         st.session_state['liked_posts'].add(post_id) # Add to liked set
                         st.session_state['like_cooldown_end_time'] = current_time + cooldown_duration # Set new like cooldown
 
@@ -548,8 +606,10 @@ for post in posts:
 
                     if is_disliked_by_user:
                         # If already disliked, remove the dislike
-                        cursor.execute("UPDATE posts SET dislikes = dislikes - 1 WHERE id = ?", (post_id,))
+                        cursor.execute("UPDATE posts SET dislikes = dislikes - 1 WHERE id = %s", (post_id,))
                         conn.commit()
+                        # cursor.execute("UPDATE posts SET dislikes = dislikes - 1 WHERE id = ?", (post_id,))
+                        # conn.commit()
                         st.session_state['disliked_posts'].remove(post_id) # Remove from disliked set
                     elif current_time < st.session_state['dislike_cooldown_end_time']:
                         # If not disliked, but cooldown is active
@@ -557,8 +617,10 @@ for post in posts:
                         message_content = f"⌚ Dislike cooldown: Please wait {time_left:.2f}s."
                     else:
                         # If not disliked and cooldown is clear, perform dislike action
-                        cursor.execute("UPDATE posts SET dislikes = dislikes + 1 WHERE id = ?", (post_id,))
+                        cursor.execute("UPDATE posts SET dislikes = dislikes + 1 WHERE id = %s", (post_id,))
                         conn.commit()
+                        # cursor.execute("UPDATE posts SET dislikes = dislikes + 1 WHERE id = ?", (post_id,))
+                        # conn.commit()
                         st.session_state['disliked_posts'].add(post_id) # Add to disliked set
                         st.session_state['dislike_cooldown_end_time'] = current_time + cooldown_duration # Set new dislike cooldown
 
@@ -611,8 +673,10 @@ for post in posts:
                         message_content = f"⌚ Report cooldown: Please wait {time_left:.2f}s."
                     else:
                         # If not reported and cooldown is clear, perform report action
-                        cursor.execute("UPDATE posts SET reports = reports + 1 WHERE id = ?", (post_id,))
+                        cursor.execute("UPDATE posts SET reports = reports + 1 WHERE id = %s", (post_id,))
                         conn.commit()
+                        # cursor.execute("UPDATE posts SET reports = reports + 1 WHERE id = ?", (post_id,))
+                        # conn.commit()
                         st.session_state['reported_posts'].add(post_id) # Add to reported set
                         st.session_state['report_cooldown_end_time'] = current_time + cooldown_duration # Set new report cooldown
                         message_content = "🚩 Post reported!"
