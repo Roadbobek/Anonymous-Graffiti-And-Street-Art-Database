@@ -104,7 +104,8 @@ post_id_search = st.text_input("Enter post ID:")
 st.divider() # Divider under search bar
 
 # Get post with searched ID
-cursor.execute("SELECT * FROM posts WHERE id = ?", (post_id_search,))
+cursor.execute("SELECT * FROM posts WHERE id = %s", (post_id_search,))
+# cursor.execute("SELECT * FROM posts WHERE id = ?", (post_id_search,)) # SQLlite
 posts = cursor.fetchall() # Fetch results for the ID search
 
 # Unpack post data into post variable
