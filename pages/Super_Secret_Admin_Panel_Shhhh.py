@@ -272,10 +272,12 @@ for post in posts:
             # Button to change post state, visible or removed
             if st.button(label="Change REMOVED value", use_container_width=True):
                 if removed == 0:
-                    cursor.execute("UPDATE posts SET removed = 1 WHERE id = ?", (post_id_search,))
+                    cursor.execute("UPDATE posts SET removed = 1 WHERE id = %s", (post_id_search,))
+                    #cursor.execute("UPDATE posts SET removed = 1 WHERE id = ?", (post_id_search,))
                     conn.commit()
                 else:
-                    cursor.execute("UPDATE posts SET removed = 0 WHERE id = ?", (post_id_search,))
+                    cursor.execute("UPDATE posts SET removed = 0 WHERE id = %s", (post_id_search,))
+                    #cursor.execute("UPDATE posts SET removed = 0 WHERE id = ?", (post_id_search,))
                     conn.commit()
                 st.rerun()
 
