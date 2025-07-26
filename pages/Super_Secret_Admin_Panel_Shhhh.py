@@ -215,7 +215,8 @@ if post_id_search:
     cursor.execute("SELECT * FROM posts WHERE id = %s", (post_id_search,))
     posts = cursor.fetchall() # Fetch results for the ID search
 else:
-    st.warning("Enter post ID to search.")
+    pass
+    # st.warning("Enter post ID to search.")
 
 # cursor.execute("SELECT * FROM posts WHERE id = ?", (post_id_search,)) # SQLlite
 # posts = cursor.fetchall() # Fetch results for the ID search
@@ -229,6 +230,9 @@ for post in posts:
 
     # Create two columns for post display
     col1, col2 = st.columns([0.7, 0.3])
+
+    if post_id:
+        st.warning(f"No post found with ID: {post_id_search}")
 
     # Show post image
     with col1:
