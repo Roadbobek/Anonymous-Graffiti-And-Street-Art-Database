@@ -1,8 +1,9 @@
 import streamlit as st
 from PIL import Image
-import sqlite3
+# import sqlite3
 import bcrypt
 import os
+import psycopg2
 
 
 # ——— Page Config & Title ———
