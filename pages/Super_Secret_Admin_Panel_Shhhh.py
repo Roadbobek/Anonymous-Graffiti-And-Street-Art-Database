@@ -284,5 +284,4 @@ for post in posts:
 
     st.divider() # Divider under post
 
-else:
-    st.warning(f"No post found with ID: {post_id_search}")
+st.warning(f"No post found with ID: {post_id_search}")
