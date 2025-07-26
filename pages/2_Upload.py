@@ -146,6 +146,7 @@ DB_USER = os.getenv("PG_DB_USER")
 DB_PASSWORD = os.getenv("PG_DB_PASSWORD")
 DB_PORT = os.getenv("PG_DB_PORT", "5432") # Default PostgreSQL port, provide a fallback
 
+
 # --- Database Connection Function (using Streamlit's cache_resource for efficiency) ---
 @st.cache_resource
 def get_db_connection():
