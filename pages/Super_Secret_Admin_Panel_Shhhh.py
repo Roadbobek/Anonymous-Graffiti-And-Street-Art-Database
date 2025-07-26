@@ -210,44 +210,42 @@ post_id_search = st.text_input("Enter post ID:")
 
 st.divider() # Divider under search bar
 
-# Get post with searched ID
+
+
+# Post search and "No post found" message
+posts = []
+post_id_to_query = None
+
+# Handle post ID search
 if post_id_search:
-    cursor.execute("SELECT * FROM posts WHERE id = %s", (post_id_search,))
-    posts = cursor.fetchall() # Fetch results for the ID search
-else:
-    pass
-    # st.warning("Enter post ID to search.")
-
-# cursor.execute("SELECT * FROM posts WHERE id = ?", (post_id_search,)) # SQLlite
-# posts = cursor.fetchall() # Fetch results for the ID search
-
-
-
-# Get post with searched ID
-if post_id_search:
-    # --- Try-except for integer conversion is KEPT to prevent crashes from non-numeric input ---
     try:
-        post_id_to_query = int(post_id_search) # Convert input to int for query
-        # Removed specific psycopg2.Error and general Exception handling for simplicity as requested.
-        # This means raw Python errors will be shown if database issues occur here.
+        post_id_to_query = int(post_id_search) # Convert input to int
+        # Execute DB query for the given ID
         cursor.execute("SELECT * FROM posts WHERE id = %s", (post_id_to_query,))
-        posts = cursor.fetchall() # Fetch results for the ID search
+        posts = cursor.fetchall()
 
-    except ValueError: # Keep this to prevent crash on non-numeric input
+    except ValueError:
         st.error("Invalid Post ID format. Please enter a number.")
-        posts = [] # Ensure posts is empty if input is invalid
-        post_id_to_query = None # Reset for clarity, so no "Not found" message shows for bad input
-else: # This handles the case where post_id_search is empty
-    pass
+        posts = [] # Clear posts on invalid input
+        post_id_to_query = None # Reset to prevent "No post found" for non-numeric input
+else:
+    pass # No action if search input is empty
 
-
-# --- Display "No post found" message ---
-# This block runs only if:
-# 1. A search ID was provided (`post_id_search`).
-# 2. The database returned no posts (`not posts`).
-# 3. The provided ID was successfully converted to an integer (`post_id_to_query is not None`).
+# Display "No post found" message if search performed but no results
 if post_id_search and not posts and post_id_to_query is not None:
     st.warning(f"No post found with ID: {post_id_to_query}")
+
+
+# # Get post with searched ID
+# if post_id_search:
+#     cursor.execute("SELECT * FROM posts WHERE id = %s", (post_id_search,))
+#     posts = cursor.fetchall() # Fetch results for the ID search
+# else:
+#     pass
+#     # st.warning("Enter post ID to search.")
+#
+# # cursor.execute("SELECT * FROM posts WHERE id = ?", (post_id_search,)) # SQLlite
+# # posts = cursor.fetchall() # Fetch results for the ID search
 
 
 
