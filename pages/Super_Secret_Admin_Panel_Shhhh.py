@@ -231,9 +231,6 @@ for post in posts:
     # Create two columns for post display
     col1, col2 = st.columns([0.7, 0.3])
 
-    if not post_id:
-        st.warning(f"No post found with ID: {post_id_search}")
-
     # Show post image
     with col1:
         img_data = get_image_from_r2(r2_object_key) # Use r2_object_key to get image data
@@ -286,3 +283,6 @@ for post in posts:
                 st.rerun()
 
     st.divider() # Divider under post
+
+else:
+    st.warning(f"No post found with ID: {post_id_search}")
