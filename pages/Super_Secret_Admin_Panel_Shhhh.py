@@ -222,6 +222,35 @@ else:
 # posts = cursor.fetchall() # Fetch results for the ID search
 
 
+
+# Get post with searched ID
+if post_id_search:
+    # --- Try-except for integer conversion is KEPT to prevent crashes from non-numeric input ---
+    try:
+        post_id_to_query = int(post_id_search) # Convert input to int for query
+        # Removed specific psycopg2.Error and general Exception handling for simplicity as requested.
+        # This means raw Python errors will be shown if database issues occur here.
+        cursor.execute("SELECT * FROM posts WHERE id = %s", (post_id_to_query,))
+        posts = cursor.fetchall() # Fetch results for the ID search
+
+    except ValueError: # Keep this to prevent crash on non-numeric input
+        st.error("Invalid Post ID format. Please enter a number.")
+        posts = [] # Ensure posts is empty if input is invalid
+        post_id_to_query = None # Reset for clarity, so no "Not found" message shows for bad input
+else: # This handles the case where post_id_search is empty
+    pass
+
+
+# --- Display "No post found" message ---
+# This block runs only if:
+# 1. A search ID was provided (`post_id_search`).
+# 2. The database returned no posts (`not posts`).
+# 3. The provided ID was successfully converted to an integer (`post_id_to_query is not None`).
+if post_id_search and not posts and post_id_to_query is not None:
+    st.warning(f"No post found with ID: {post_id_to_query}")
+
+
+
 # Unpack post data into post variable
 for post in posts:
     # Unpack post data
@@ -283,5 +312,3 @@ for post in posts:
                 st.rerun()
 
     st.divider() # Divider under post
-
-st.warning(f"No post found with ID: {post_id_search}")
