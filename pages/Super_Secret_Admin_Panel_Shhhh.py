@@ -12,6 +12,12 @@ st.set_page_config(
     layout="wide"
 )
 
+# - Sidebar navigation -
+st.sidebar.title("Navigation")
+st.sidebar.page_link('View.py', label='**View** Posts')
+st.sidebar.page_link('pages/2_Upload.py', label='**Upload** New Post')
+st.sidebar.page_link('pages/4_About_The_Project.py', label='*About The Project*')
+
 
 # Apply custom CSS for global styling
 st.markdown("""
@@ -65,7 +71,7 @@ st.divider() # Divider under header
 
 
 # --- Secure admin login ---
-ADMIN_HASHED_PASSWORD = """$2b$12$W.b6ZekaqS5W9jcprTsMt.Pc1qLIC8xB6Cp7agJzw0E9.THiICo1q"""
+ADMIN_HASHED_PASSWORD = """$2b$12$e/7ptQltfdaS71bdUi7tJubWmAUQSVV9Lf6f6q6g4Qx8zZMgLBG7O""" # The password is "Password123"
 
 # Admin password input field
 password_input = st.text_input("🗝️ Enter admin password:", type="password")

@@ -17,6 +17,13 @@ st.set_page_config(
     layout="centered"
 )
 
+# - Sidebar navigation -
+st.sidebar.title("Navigation")
+st.sidebar.page_link('View.py', label='**View** Posts')
+st.sidebar.page_link('pages/2_Upload.py', label='**Upload** New Post')
+st.sidebar.page_link('pages/4_About_The_Project.py', label='*About The Project*')
+
+
 # Apply custom CSS for global styling
 st.markdown("""
     <style>
@@ -121,10 +128,10 @@ def captcha_control():
         )
         with st.form("captcha_form", clear_on_submit=True):
             c1, c2 = st.columns(2)
-            img = ImageCaptcha(width=200, height=150)
-            c1.image(img.generate(st.session_state['Captcha']))
+            img = ImageCaptcha(width=300, height=100)
+            c1.image(img.generate(st.session_state['Captcha']), use_container_width=True)
             inp = c2.text_input("Enter Captcha:")
-            ok = st.form_submit_button("Verify")
+            ok = st.form_submit_button("Verify", use_container_width=True)
             if ok:
                 if inp.strip().lower() == st.session_state['Captcha'].lower():
                     st.session_state['controllo'] = True

@@ -7,8 +7,8 @@ def generate_hash(password):
     return hashed_password.decode('utf-8') # Store as a string
 
 
-# Replace 'myStrongAdminPassword123!' with the actual password you want to use
-password_to_hash = """myStrongAdminPassword123!"""
+# Replace 'Password123' with the actual password you want to use
+password_to_hash = """Password123"""
 
 # Hash the password
 hashed_pw = generate_hash(password_to_hash)

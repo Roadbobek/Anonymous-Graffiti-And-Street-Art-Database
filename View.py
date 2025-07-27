@@ -25,6 +25,13 @@ st.set_page_config(
     layout="wide"
 )
 
+# - Sidebar navigation -
+st.sidebar.title("Navigation")
+st.sidebar.page_link('View.py', label='**View** Posts')
+st.sidebar.page_link('pages/2_Upload.py', label='**Upload** New Post')
+st.sidebar.page_link('pages/4_About_The_Project.py', label='*About The Project*')
+
+
 # Apply custom CSS for global styling
 st.markdown("""
     <style>
